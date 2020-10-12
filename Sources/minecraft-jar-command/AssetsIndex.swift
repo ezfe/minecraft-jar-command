@@ -12,5 +12,6 @@ struct AssetsIndex: Decodable {
     
     struct Metadata: Decodable {
         let hash: String
+        let size: Int
     }
 }

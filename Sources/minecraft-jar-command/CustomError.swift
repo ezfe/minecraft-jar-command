@@ -10,4 +10,5 @@ import Foundation
 enum CustomError: Error {
     case filesystemError(String)
     case fileDownloadError(String)
+    case urlConstructionError
 }

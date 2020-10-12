@@ -60,16 +60,21 @@ func downloadClientJAR(versionDict: NSDictionary, temporaryDirectoryURL: URL) th
         print("Failed to parse out client JAR URL")
         Main.exit()
     }
-    guard let clientJarSHA1 = clientDownloadDict.value(forKey: "sha1") as? String else {
-        print("Failed to parse out client JAR SHA1")
+
+    let clientJarSHA1 = clientDownloadDict.value(forKey: "sha1") as? String
+    guard let clientJarSize = clientDownloadDict.value(forKey: "size") as? Int else {
+        print("Failed to parse out client JAR size")
         Main.exit()
     }
 
-
     let downloadedClientJAR = URL(fileURLWithPath: "client.jar", relativeTo: temporaryDirectoryURL)
 
-    let dl = DownloadManager.shared
-    try dl.download(taskName: "Client JAR File", from: clientJARDLURL, to: downloadedClientJAR, sha1: clientJarSHA1)
+    let request = DownloadManager.DownloadRequest(taskName: "Client JAR File",
+                                                  remoteURL: clientJARDLURL,
+                                                  destinationURL: downloadedClientJAR,
+                                                  size: clientJarSize,
+                                                  sha1: clientJarSHA1)
+    try DownloadManager.shared.download(request)
 
     return downloadedClientJAR
 }
@@ -86,11 +91,13 @@ func processArtifact(name: String, downloadsDict: NSDictionary, librariesURL: UR
         print(artifactDict)
         Main.exit()
     }
-    guard let librarySHA1 = artifactDict.value(forKey: "sha1") as? String else {
-        print("Failed to parse out library SHA1")
-        print(artifactDict)
+
+    let sha1 = artifactDict.value(forKey: "sha1") as? String
+    guard let size = artifactDict.value(forKey: "size") as? Int else {
+        print("Failed to parse out library size")
         Main.exit()
     }
+
     guard let pathComponent = artifactDict.value(forKey: "path") as? String else {
         print("Failed to parse out path")
         print(artifactDict)
@@ -99,8 +106,13 @@ func processArtifact(name: String, downloadsDict: NSDictionary, librariesURL: UR
 
     let destinationURL = librariesURL.appendingPathComponent(pathComponent)
 
-    let dl = DownloadManager.shared
-    try dl.download(taskName: "Library \(name)", from: libraryDLURL, to: destinationURL, sha1: librarySHA1)
+    let request = DownloadManager.DownloadRequest(taskName: "Library \(name)",
+                                                  remoteURL: libraryDLURL,
+                                                  destinationURL: destinationURL,
+                                                  size: size,
+                                                  sha1: sha1)
+    try DownloadManager.shared.download(request)
+
 
     return destinationURL
 }
@@ -108,7 +120,6 @@ func processArtifact(name: String, downloadsDict: NSDictionary, librariesURL: UR
 func processClassifier(name: String, downloadsDict: NSDictionary, librariesURL: URL) throws -> URL? {
     guard let classifierDict = downloadsDict.value(forKey: "classifiers") as? NSDictionary else {
         print("Found no classifiers, skipping")
-        print(downloadsDict)
         return nil
     }
     let _macosNativesDict = classifierDict.value(forKey: "natives-macos") as? NSDictionary
@@ -124,6 +135,13 @@ func processClassifier(name: String, downloadsDict: NSDictionary, librariesURL: 
         print(macosNativesDict)
         Main.exit()
     }
+
+    let sha1 = macosNativesDict.value(forKey: "sha1") as? String
+    guard let size = macosNativesDict.value(forKey: "size") as? Int else {
+        print("Failed to parse out natives size")
+        Main.exit()
+    }
+
     guard let pathComponent = macosNativesDict.value(forKey: "path") as? String else {
         print("Failed to parse out path")
         print(macosNativesDict)
@@ -132,31 +150,12 @@ func processClassifier(name: String, downloadsDict: NSDictionary, librariesURL: 
 
     let destinationURL = librariesURL.appendingPathComponent(pathComponent)
 
-    if FileManager.default.fileExists(atPath: destinationURL.path) {
-        print("\(name) already downloaded")
-        print("Skipping...")
-        return destinationURL
-    }
-
-    try FileManager.default.createDirectory(at: destinationURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-
-    let semaphore = DispatchSemaphore(value: 0)
-
-    let download = URLSession.shared.downloadTask(with: nativeDLURL) { (fileURL, response, error) in
-        guard let fileURL = fileURL else {
-            print(error?.localizedDescription ?? "Unknown error downloading natives for \(name)")
-            print(nativeDLURL)
-            Main.exit()
-        }
-
-        print("Finished downloading natives for \(name)")
-        try! FileManager.default.moveItem(at: fileURL, to: destinationURL)
-        semaphore.signal()
-    }
-
-    print("Downloading natives for \(name)")
-    download.resume()
-    semaphore.wait()
+    let request = DownloadManager.DownloadRequest(taskName: "Library/Native \(name)",
+                                                  remoteURL: nativeDLURL,
+                                                  destinationURL: destinationURL,
+                                                  size: size,
+                                                  sha1: sha1)
+    try DownloadManager.shared.download(request)
 
     return destinationURL
 }
@@ -201,10 +200,6 @@ func downloadLibrary(libraryDict: NSDictionary, librariesURL: URL) throws -> Lib
     let liburl = try processArtifact(name: name, downloadsDict: downloadsDict, librariesURL: librariesURL)
     let nativeurl = try processClassifier(name: name, downloadsDict: downloadsDict, librariesURL: librariesURL)
 
-//    print(downloadsDict)
-//    print(liburl)
-//    print(nativeurl?.description ?? "no native file")
-
     return LibraryInformation(url: liburl, native: nativeurl)
 }
 
@@ -220,45 +215,26 @@ func downloadLibraries(versionDict: NSDictionary, temporaryDirectoryURL: URL) th
     return try libraryArr.compactMap { try downloadLibrary(libraryDict: $0, librariesURL: libraryURL) }
 }
 
-func downloadAsset(name: String, hash: String, assetsObjsDirectoryURL: URL) throws {
+func buildAssetRequest(name: String, hash: String, size: Int, assetsObjsDirectoryURL: URL) -> Result<DownloadManager.DownloadRequest, CustomError> {
     let prefix = hash.prefix(2)
+    
     guard let downloadURL = URL(string: "https://resources.download.minecraft.net/\(prefix)/\(hash)") else {
         print("Failed to build URL for \(name)")
-        Main.exit()
+        return .failure(CustomError.urlConstructionError)
     }
 
-    let destinationURL = assetsObjsDirectoryURL.appendingPathComponent("\(prefix)/\(hash)", isDirectory: true)
+    let destinationURL = assetsObjsDirectoryURL.appendingPathComponent("\(prefix)/\(hash)")
 
-    if FileManager.default.fileExists(atPath: destinationURL.path) {
-        print("\(name) already downloaded")
-        print("Skipping...")
-        return
-    }
-
-    try FileManager.default.createDirectory(at: destinationURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-
-    let semaphore = DispatchSemaphore(value: 0)
-
-    let download = URLSession.shared.downloadTask(with: downloadURL) { (fileURL, response, error) in
-        guard let fileURL = fileURL else {
-            print(error?.localizedDescription ?? "Unknown error downloading asset \(name)")
-            print(downloadURL)
-            Main.exit()
-        }
-
-        print("Finished downloading asset \(name)")
-        try! FileManager.default.moveItem(at: fileURL, to: destinationURL)
-        semaphore.signal()
-    }
-
-    print("Downloading asset \(name)")
-    download.resume()
-    semaphore.wait()
+    let request = DownloadManager.DownloadRequest(taskName: "Asset \(name)",
+                                                  remoteURL: downloadURL,
+                                                  destinationURL: destinationURL,
+                                                  size: size,
+                                                  sha1: hash,
+                                                  verbose: false)
+    return .success(request)
 }
 
 func downloadAssets(versionDict: NSDictionary, temporaryDirectoryURL: URL) throws -> (URL, String) {
-    print(versionDict)
-
     let assetsDirectoryURL = URL(fileURLWithPath: "assets", isDirectory: true, relativeTo: temporaryDirectoryURL)
     let assetsObjsDirectoryURL = assetsDirectoryURL.appendingPathComponent("objects", isDirectory: true)
     let assetsIndxsDirectoryURL = assetsDirectoryURL.appendingPathComponent("indexes", isDirectory: true)
@@ -293,23 +269,19 @@ func downloadAssets(versionDict: NSDictionary, temporaryDirectoryURL: URL) throw
     try indexData.write(to: indexJSONFileURL)
 
     let index = try decoder.decode(AssetsIndex.self, from: indexData)
-
-    let group = DispatchGroup()
-    let queue = DispatchQueue(label: "asset-downloading")
-
-    for (name, metadata) in index.objects {
-        group.enter()
-        queue.async {
-            do {
-                try downloadAsset(name: name, hash: metadata.hash, assetsObjsDirectoryURL: assetsObjsDirectoryURL)
-            } catch let err {
-                print(err.localizedDescription)
-            }
-            group.leave()
+    let downloadRequests = index.objects.map { (name, metadata) -> DownloadManager.DownloadRequest in
+        let res = buildAssetRequest(name: name, hash: metadata.hash, size: metadata.size, assetsObjsDirectoryURL: assetsObjsDirectoryURL)
+        switch res {
+        case .success(let request):
+            return request
+        case .failure(let error):
+            print(error)
+            Main.exit()
         }
     }
 
-    group.wait()
+    try DownloadManager.shared.download(downloadRequests, named: "Asset Collection")
+
     return (assetsObjsDirectoryURL.deletingLastPathComponent(), assetVersion)
 }
 
@@ -376,13 +348,13 @@ struct Main: ParsableCommand {
         }
 
         let temporaryDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory(),
-                                            isDirectory: true)
+                                        isDirectory: true)
             .appendingPathComponent("minecraft-jar-command", isDirectory: true)
 
         try FileManager.default.createDirectory(at: temporaryDirectoryURL, withIntermediateDirectories: true)
 
         print("\n\nDownloading game files to: \(temporaryDirectoryURL.path).\n\n>>>Press any key to continue")
-        let _ = readLine()
+//        let _ = readLine()
 
         let clientJAR = try downloadClientJAR(versionDict: versionDict,
                                               temporaryDirectoryURL: temporaryDirectoryURL)
@@ -425,7 +397,7 @@ struct Main: ParsableCommand {
 
         let launchURL = temporaryDirectoryURL.appendingPathComponent("launch.sh")
         try command.write(to: launchURL, atomically: false, encoding: .utf8)
-        launch(shell: "cd \(temporaryDirectoryURL.path); open .; chmod +x launch.sh; ./launch.sh")
+//        launch(shell: "cd \(temporaryDirectoryURL.path); open .; chmod +x launch.sh; ./launch.sh")
     }
 }
 
