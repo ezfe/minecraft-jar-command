@@ -18,37 +18,26 @@ struct DownloadManager {
 
         let totalSize = batch.map { $0.size }.reduce(0, +)
         var currentTotal = 0
-        var lastPercentPrinted = 0
 
-        for request in batch {
-            try self.download(request)
+        let reportingQueue = DispatchQueue(label: "reporting-queue")
+        let group = DispatchGroup()
 
-            currentTotal += request.size
-            let currentPercent = (100 * currentTotal) / totalSize
+        DispatchQueue.concurrentPerform(iterations: batch.count) { i in
+            group.enter()
+            let request = batch[i]
+            try? self.download(request)
 
-            func intervalCheck(target: Int) {
-                if currentPercent >= target && lastPercentPrinted < target {
-                    // Bring up to target - 1
-                    print(String(repeating: "=", count: target - 1 - lastPercentPrinted), terminator: "")
-                    print(target, terminator: "")
-                    lastPercentPrinted = target + 1
-                }
+            reportingQueue.sync {
+                currentTotal += request.size
+                let currentPercent = (100 * currentTotal) / totalSize
+
+                print("\(currentPercent)% done \r", terminator: "")
             }
-
-            intervalCheck(target: 10)
-            intervalCheck(target: 25)
-            intervalCheck(target: 50)
-            intervalCheck(target: 75)
-            intervalCheck(target: 90)
-
-            if currentPercent > lastPercentPrinted {
-                let deficit = currentPercent - lastPercentPrinted
-                lastPercentPrinted = currentPercent
-                print(String(repeating: "=", count: deficit), terminator: "")
-            }
+            group.leave()
         }
 
-        print("\n==== Completed Download Batch : \(batchName) ====")
+        group.wait()
+        print("")
     }
 
     func download(_ request: DownloadRequest) throws {
