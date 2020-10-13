@@ -1,3 +1,3 @@
 # minecraft-jar-command
 
-A description of this package.
+Download and run Minecraft without the Launcher.
