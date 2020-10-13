@@ -115,42 +115,37 @@ func processArtifact(name: String, downloadsDict: NSDictionary, librariesURL: UR
     return LibraryMetadata(localURL: destinationURL, isNative: false, downloadRequest: request)
 }
 
-func processClassifier(name: String, downloadsDict: NSDictionary, librariesURL: URL) throws -> LibraryMetadata? {
+func processClassifier(name: String, libraryDict: NSDictionary, librariesURL: URL) throws -> LibraryMetadata? {
 
-    guard let classifierDict = downloadsDict.value(forKey: "classifiers") as? NSDictionary else {
-        print("Found no classifiers, skipping")
+    guard let nativesMappingDictionary = libraryDict.value(forKey: "natives") as? NSDictionary,
+          let nativesMappingKey = nativesMappingDictionary.value(forKey: "osx") as? String else {
+        // Failures here are acceptable and need not be logged
         return nil
     }
-    let _macosNativesDict = classifierDict.value(forKey: "natives-macos") as? NSDictionary
-    let _osxNativesDict = classifierDict.value(forKey: "natives-osx") as? NSDictionary
-    guard let macosNativesDict = _macosNativesDict ?? _osxNativesDict else {
-        print("Found no macos/osx natives, skipping")
-        print(classifierDict)
-        return nil
-    }
-    guard let _nativeDLURL = macosNativesDict.value(forKey: "url") as? String,
-          let nativeDLURL = URL(string: _nativeDLURL) else {
-        print("Failed to parse out native URL")
-        print(macosNativesDict)
+
+    guard let classifiersDict = libraryDict.value(forKeyPath: "downloads.classifiers") as? NSDictionary,
+          let macosNativeDict = classifiersDict.value(forKey: nativesMappingKey) as? NSDictionary else {
+        // This is a failure point, however
+        print("There's a natives entry for macOS = \(nativesMappingKey), but there's no corresponding download")
+        print(libraryDict)
         Main.exit()
     }
 
-    let sha1 = macosNativesDict.value(forKey: "sha1") as? String
-    guard let size = macosNativesDict.value(forKey: "size") as? Int else {
-        print("Failed to parse out natives size")
-        Main.exit()
-    }
+    guard let pathComponent = macosNativeDict.value(forKey: "path") as? String,
+          let _remoteURL = macosNativeDict.value(forKey: "url") as? String,
+          let remoteURL = URL(string: _remoteURL),
+          let sha1 = macosNativeDict.value(forKey: "sha1") as? String,
+          let size = macosNativeDict.value(forKey: "size") as? Int else {
 
-    guard let pathComponent = macosNativesDict.value(forKey: "path") as? String else {
-        print("Failed to parse out path")
-        print(macosNativesDict)
+        print("Failed to parse out parameters from native dictionary")
+        print(macosNativeDict)
         Main.exit()
     }
 
     let destinationURL = librariesURL.appendingPathComponent(pathComponent)
 
     let request = DownloadManager.DownloadRequest(taskName: "Library/Native \(name)",
-                                                  remoteURL: nativeDLURL,
+                                                  remoteURL: remoteURL,
                                                   destinationURL: destinationURL,
                                                   size: size,
                                                   sha1: sha1,
@@ -197,7 +192,7 @@ func downloadLibrary(libraryDict: NSDictionary, librariesURL: URL) throws -> [Li
     }
 
     let libmetadata = try processArtifact(name: name, downloadsDict: downloadsDict, librariesURL: librariesURL)
-    let nativemetadata = try processClassifier(name: name, downloadsDict: downloadsDict, librariesURL: librariesURL)
+    let nativemetadata = try processClassifier(name: name, libraryDict: libraryDict, librariesURL: librariesURL)
 
     return [libmetadata, nativemetadata].compactMap { $0 }
 }
@@ -374,6 +369,7 @@ struct Main: ParsableCommand {
         }
 
         let librariesClassPath = libraries.map { $0.localURL.relativePath }.joined(separator: ":")
+        let classPath = "\(librariesClassPath):\(clientJAR.relativePath)"
 
         let argsStr = gameArguments(versionDict: versionDict,
                                     versionName: versionManifestEntry.id,
@@ -387,7 +383,7 @@ struct Main: ParsableCommand {
                 -Xmx1024M \
                 -XstartOnFirstThread \
                 -Djava.library.path=\(nativeDirectory.relativePath) \
-                -cp \(librariesClassPath):\(clientJAR.relativePath) \
+                -cp \(classPath) \
                 \(mainClassName) \
                 \(argsStr)
             """
