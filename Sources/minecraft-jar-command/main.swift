@@ -45,35 +45,23 @@ func getManifest(version: String?) -> VersionManifest.Version {
     return versionManifestEntry
 }
 
-func downloadClientJAR(versionDict: NSDictionary, temporaryDirectoryURL: URL) throws -> URL {
-    guard let downloadsDict = versionDict.value(forKey: "downloads") as? NSDictionary else {
-        print("Failed to parse out downloads dictionary")
-        Main.exit()
-    }
-    guard let clientDownloadDict = downloadsDict.value(forKey: "client") as? NSDictionary else {
-        print("Failed to parse out client downloads dictionary")
+func downloadClientJAR(versionDict: NSDictionary, version: String, temporaryDirectoryURL: URL) throws -> URL {
+    guard let _remoteURL = versionDict.value(forKeyPath: "downloads.client.url") as? String,
+          let remoteURL = URL(string: _remoteURL),
+          let sha1 = versionDict.value(forKeyPath: "downloads.client.sha1") as? String,
+          let size = versionDict.value(forKeyPath: "downloads.client.size") as? Int else {
+
+        print("Failed to parse out client JAR download URL")
         Main.exit()
     }
 
-    guard let _cjurl = clientDownloadDict.value(forKey: "url") as? String,
-          let clientJARDLURL = URL(string: _cjurl) else {
-        print("Failed to parse out client JAR URL")
-        Main.exit()
-    }
-
-    let clientJarSHA1 = clientDownloadDict.value(forKey: "sha1") as? String
-    guard let clientJarSize = clientDownloadDict.value(forKey: "size") as? Int else {
-        print("Failed to parse out client JAR size")
-        Main.exit()
-    }
-
-    let downloadedClientJAR = URL(fileURLWithPath: "client.jar", relativeTo: temporaryDirectoryURL)
+    let downloadedClientJAR = URL(fileURLWithPath: "versions/\(version)/\(version).jar", relativeTo: temporaryDirectoryURL)
 
     let request = DownloadManager.DownloadRequest(taskName: "Client JAR File",
-                                                  remoteURL: clientJARDLURL,
+                                                  remoteURL: remoteURL,
                                                   destinationURL: downloadedClientJAR,
-                                                  size: clientJarSize,
-                                                  sha1: clientJarSHA1)
+                                                  size: size,
+                                                  sha1: sha1)
     try DownloadManager.shared.download(request)
 
     return downloadedClientJAR
@@ -341,6 +329,7 @@ struct Main: ParsableCommand {
 //        let _ = readLine()
 
         let clientJAR = try downloadClientJAR(versionDict: versionDict,
+                                              version: versionManifestEntry.id,
                                               temporaryDirectoryURL: temporaryDirectoryURL)
 
         let (assetsDir, assetsVersion) = try downloadAssets(versionDict: versionDict, temporaryDirectoryURL: temporaryDirectoryURL)

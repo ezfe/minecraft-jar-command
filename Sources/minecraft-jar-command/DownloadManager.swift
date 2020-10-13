@@ -18,6 +18,7 @@ struct DownloadManager {
 
         let totalSize = batch.map { $0.size }.reduce(0, +)
         var currentTotal = 0
+        var lastPercent = 0
 
         let reportingQueue = DispatchQueue(label: "reporting-queue")
         let group = DispatchGroup()
@@ -30,8 +31,10 @@ struct DownloadManager {
             reportingQueue.sync {
                 currentTotal += request.size
                 let currentPercent = (100 * currentTotal) / totalSize
-
-                print("\(currentPercent)% done \r", terminator: "")
+                if currentPercent > lastPercent {
+                    print("\(currentPercent)% done \r", terminator: "")
+                }
+                lastPercent = currentPercent
             }
             group.leave()
         }
