@@ -7,7 +7,9 @@
 
 import Foundation
 
-struct LibraryInformation {
-    let url: URL
-    let native: URL?
+struct LibraryMetadata {
+    let localURL: URL
+    let isNative: Bool
+
+    let downloadRequest: DownloadManager.DownloadRequest
 }

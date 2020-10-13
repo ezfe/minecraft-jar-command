@@ -79,7 +79,7 @@ func downloadClientJAR(versionDict: NSDictionary, temporaryDirectoryURL: URL) th
     return downloadedClientJAR
 }
 
-func processArtifact(name: String, downloadsDict: NSDictionary, librariesURL: URL) throws -> URL {
+func processArtifact(name: String, downloadsDict: NSDictionary, librariesURL: URL) throws -> LibraryMetadata {
     guard let artifactDict = downloadsDict.value(forKey: "artifact") as? NSDictionary else {
         print("Artifact dictionary missing")
         print(downloadsDict)
@@ -110,14 +110,13 @@ func processArtifact(name: String, downloadsDict: NSDictionary, librariesURL: UR
                                                   remoteURL: libraryDLURL,
                                                   destinationURL: destinationURL,
                                                   size: size,
-                                                  sha1: sha1)
-    try DownloadManager.shared.download(request)
-
-
-    return destinationURL
+                                                  sha1: sha1,
+                                                  verbose: false)
+    return LibraryMetadata(localURL: destinationURL, isNative: false, downloadRequest: request)
 }
 
-func processClassifier(name: String, downloadsDict: NSDictionary, librariesURL: URL) throws -> URL? {
+func processClassifier(name: String, downloadsDict: NSDictionary, librariesURL: URL) throws -> LibraryMetadata? {
+
     guard let classifierDict = downloadsDict.value(forKey: "classifiers") as? NSDictionary else {
         print("Found no classifiers, skipping")
         return nil
@@ -154,13 +153,13 @@ func processClassifier(name: String, downloadsDict: NSDictionary, librariesURL: 
                                                   remoteURL: nativeDLURL,
                                                   destinationURL: destinationURL,
                                                   size: size,
-                                                  sha1: sha1)
-    try DownloadManager.shared.download(request)
+                                                  sha1: sha1,
+                                                  verbose: false)
 
-    return destinationURL
+    return LibraryMetadata(localURL: destinationURL, isNative: true, downloadRequest: request)
 }
 
-func downloadLibrary(libraryDict: NSDictionary, librariesURL: URL) throws -> LibraryInformation? {
+func downloadLibrary(libraryDict: NSDictionary, librariesURL: URL) throws -> [LibraryMetadata] {
     guard let name = libraryDict.value(forKey: "name") as? String else {
         print("Library name missing")
         Main.exit()
@@ -187,7 +186,7 @@ func downloadLibrary(libraryDict: NSDictionary, librariesURL: URL) throws -> Lib
         }
         if ruleFailure {
             print("Skipping \(name) due to rule")
-            return nil
+            return []
         }
     }
 
@@ -197,13 +196,13 @@ func downloadLibrary(libraryDict: NSDictionary, librariesURL: URL) throws -> Lib
         Main.exit()
     }
 
-    let liburl = try processArtifact(name: name, downloadsDict: downloadsDict, librariesURL: librariesURL)
-    let nativeurl = try processClassifier(name: name, downloadsDict: downloadsDict, librariesURL: librariesURL)
+    let libmetadata = try processArtifact(name: name, downloadsDict: downloadsDict, librariesURL: librariesURL)
+    let nativemetadata = try processClassifier(name: name, downloadsDict: downloadsDict, librariesURL: librariesURL)
 
-    return LibraryInformation(url: liburl, native: nativeurl)
+    return [libmetadata, nativemetadata].compactMap { $0 }
 }
 
-func downloadLibraries(versionDict: NSDictionary, temporaryDirectoryURL: URL) throws -> [LibraryInformation] {
+func downloadLibraries(versionDict: NSDictionary, temporaryDirectoryURL: URL) throws -> [LibraryMetadata] {
     guard let libraryArr = versionDict.value(forKey: "libraries") as? [NSDictionary] else {
         print("Failed to parse out library array")
         Main.exit()
@@ -212,7 +211,12 @@ func downloadLibraries(versionDict: NSDictionary, temporaryDirectoryURL: URL) th
     let libraryURL = URL(fileURLWithPath: "libraries",
                          relativeTo: temporaryDirectoryURL)
 
-    return try libraryArr.compactMap { try downloadLibrary(libraryDict: $0, librariesURL: libraryURL) }
+    let libraryMetadata = try libraryArr.compactMap { try downloadLibrary(libraryDict: $0, librariesURL: libraryURL) }.joined()
+
+    let requests = libraryMetadata.map { $0.downloadRequest }
+    try DownloadManager.shared.download(requests, named: "Libraries")
+
+    return Array(libraryMetadata)
 }
 
 func buildAssetRequest(name: String, hash: String, size: Int, assetsObjsDirectoryURL: URL) -> Result<DownloadManager.DownloadRequest, CustomError> {
@@ -234,26 +238,21 @@ func buildAssetRequest(name: String, hash: String, size: Int, assetsObjsDirector
     return .success(request)
 }
 
-func downloadAssets(versionDict: NSDictionary, temporaryDirectoryURL: URL) throws -> (URL, String) {
+func downloadAssets(versionDict: NSDictionary, temporaryDirectoryURL: URL) throws -> (assetsDirectory: URL, assetsVersion: String) {
     let assetsDirectoryURL = URL(fileURLWithPath: "assets", isDirectory: true, relativeTo: temporaryDirectoryURL)
     let assetsObjsDirectoryURL = assetsDirectoryURL.appendingPathComponent("objects", isDirectory: true)
     let assetsIndxsDirectoryURL = assetsDirectoryURL.appendingPathComponent("indexes", isDirectory: true)
 
-    guard let assetVersion = versionDict.value(forKey: "assets") as? String else {
-        print("Failed to retrieve assets version")
-        print(versionDict)
-        Main.exit()
-    }
     guard let assetIndexDict = versionDict.value(forKey: "assetIndex") as? NSDictionary else {
         print("Failed to retrieve asset index")
         print(versionDict)
         Main.exit()
     }
-//    guard let assetIndexId = assetIndexDict.value(forKey: "id") as? String else {
-//        print("Failed to retrieve asset index ID")
-//        print(assetIndexDict)
-//        Main.exit()
-//    }
+    guard let assetIndexId = assetIndexDict.value(forKey: "id") as? String else {
+        print("Failed to retrieve asset index ID")
+        print(assetIndexDict)
+        Main.exit()
+    }
     guard let _assetIndexURL = assetIndexDict.value(forKey: "url") as? String,
           let assetIndexURL = URL(string: _assetIndexURL) else {
         print("Failed to retrieve asset index URL")
@@ -264,7 +263,7 @@ func downloadAssets(versionDict: NSDictionary, temporaryDirectoryURL: URL) throw
     let decoder = JSONDecoder()
     let indexData = retrieveData(url: assetIndexURL)
 
-    let indexJSONFileURL = assetsIndxsDirectoryURL.appendingPathComponent("\(assetVersion).json")
+    let indexJSONFileURL = assetsIndxsDirectoryURL.appendingPathComponent("\(assetIndexId).json")
     try FileManager.default.createDirectory(at: assetsIndxsDirectoryURL, withIntermediateDirectories: true)
     try indexData.write(to: indexJSONFileURL)
 
@@ -282,7 +281,7 @@ func downloadAssets(versionDict: NSDictionary, temporaryDirectoryURL: URL) throw
 
     try DownloadManager.shared.download(downloadRequests, named: "Asset Collection")
 
-    return (assetsObjsDirectoryURL.deletingLastPathComponent(), assetVersion)
+    return (assetsObjsDirectoryURL.deletingLastPathComponent(), assetIndexId)
 }
 
 func gameArguments(versionDict: NSDictionary,
@@ -361,22 +360,20 @@ struct Main: ParsableCommand {
 
         let (assetsDir, assetsVersion) = try downloadAssets(versionDict: versionDict, temporaryDirectoryURL: temporaryDirectoryURL)
 
-        let libs = try downloadLibraries(versionDict: versionDict, temporaryDirectoryURL: temporaryDirectoryURL)
+        let libraries = try downloadLibraries(versionDict: versionDict, temporaryDirectoryURL: temporaryDirectoryURL)
 
         let nativeDirectory = URL(fileURLWithPath: "natives", isDirectory: true, relativeTo: temporaryDirectoryURL)
         if FileManager.default.fileExists(atPath: nativeDirectory.path) {
             try FileManager.default.removeItem(at: nativeDirectory)
         }
         try FileManager.default.createDirectory(at: nativeDirectory, withIntermediateDirectories: true)
-        for lib in libs {
-            if let native = lib.native {
-                let target = nativeDirectory.appendingPathComponent(native.lastPathComponent)
-                try FileManager.default.copyItem(at: native, to: target)
-            }
+
+        try libraries.filter { $0.isNative }.forEach { libMetadata in
+            let target = nativeDirectory.appendingPathComponent(libMetadata.localURL.lastPathComponent)
+            try FileManager.default.copyItem(at: libMetadata.localURL, to: target)
         }
 
-        let libsCP = libs.map { $0.url.relativePath }.joined(separator: ":")
-        let nativesCP = libs.compactMap { $0.native?.relativePath }.joined(separator: ":")
+        let librariesClassPath = libraries.map { $0.localURL.relativePath }.joined(separator: ":")
 
         let argsStr = gameArguments(versionDict: versionDict,
                                     versionName: versionManifestEntry.id,
@@ -390,7 +387,7 @@ struct Main: ParsableCommand {
                 -Xmx1024M \
                 -XstartOnFirstThread \
                 -Djava.library.path=\(nativeDirectory.relativePath) \
-                -cp \(libsCP):\(nativesCP):\(clientJAR.relativePath) \
+                -cp \(librariesClassPath):\(clientJAR.relativePath) \
                 \(mainClassName) \
                 \(argsStr)
             """

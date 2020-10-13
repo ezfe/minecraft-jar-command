@@ -48,7 +48,7 @@ struct DownloadManager {
             }
         }
 
-        print("==== Completed Download Batch : \(batchName) ====")
+        print("\n==== Completed Download Batch : \(batchName) ====")
     }
 
     func download(_ request: DownloadRequest) throws {
