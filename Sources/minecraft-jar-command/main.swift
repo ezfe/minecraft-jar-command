@@ -273,7 +273,7 @@ func gameArguments(versionDict: NSDictionary,
                    versionName: String,
                    assetsVersion: String,
                    assetsDirectory: URL,
-                   gameDirectory: URL) -> String {
+                   gameDirectory: URL) -> [String] {
 
     guard let argumentsDict = versionDict.value(forKey: "arguments") as? NSDictionary else {
         print("Missing arguments dictionary")
@@ -309,7 +309,7 @@ func gameArguments(versionDict: NSDictionary,
             return argument
         }
     }
-    return gameArgsDict.joined(separator: " ")
+    return gameArgsDict
 }
 
 struct Main: ParsableCommand {
@@ -367,25 +367,27 @@ struct Main: ParsableCommand {
                                     assetsDirectory: assetsDir,
                                     gameDirectory: temporaryDirectoryURL)
 
-        let command = """
-            java \
-                -Xms1024M \
-                -Xmx1024M \
-                -XstartOnFirstThread \
-                -Djava.library.path=\(nativeDirectory.relativePath) \
-                -cp \(classPath) \
-                \(mainClassName) \
-                \(argsStr)
-            """
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/java")
+        proc.arguments = [
+            "-Xms1024M",
+            "-Xmx1024M",
+            "-XstartOnFirstThread",
+            "-Djava.library.path=\(nativeDirectory.relativePath)",
+            "-cp",
+            classPath,
+            mainClassName
+        ]
+        proc.arguments?.append(contentsOf: argsStr)
+        proc.currentDirectoryURL = temporaryDirectoryURL
 
-        let launchURL = temporaryDirectoryURL.appendingPathComponent("launch.sh")
-        try command.write(to: launchURL, atomically: false, encoding: .utf8)
-//        launch(shell: "cd \(temporaryDirectoryURL.path); open .; chmod +x launch.sh; ./launch.sh")
+        let pipe = Pipe()
+        proc.standardOutput = pipe
+
+        proc.launch()
+
+        proc.waitUntilExit()
     }
 }
 
 Main.main()
-//
-//print("Minecraft Standalone Launcher")
-//
-//
