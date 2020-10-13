@@ -79,27 +79,20 @@ func downloadClientJAR(versionDict: NSDictionary, temporaryDirectoryURL: URL) th
     return downloadedClientJAR
 }
 
-func processArtifact(name: String, downloadsDict: NSDictionary, librariesURL: URL) throws -> LibraryMetadata {
-    guard let artifactDict = downloadsDict.value(forKey: "artifact") as? NSDictionary else {
+func processArtifact(name: String, libraryDict: NSDictionary, librariesURL: URL) throws -> LibraryMetadata {
+    guard let artifactDict = libraryDict.value(forKeyPath: "downloads.artifact") as? NSDictionary else {
         print("Artifact dictionary missing")
-        print(downloadsDict)
-        Main.exit()
-    }
-    guard let _libraryDLURL = artifactDict.value(forKey: "url") as? String,
-          let libraryDLURL = URL(string: _libraryDLURL) else {
-        print("Failed to parse out library URL")
-        print(artifactDict)
+        print(libraryDict)
         Main.exit()
     }
 
-    let sha1 = artifactDict.value(forKey: "sha1") as? String
-    guard let size = artifactDict.value(forKey: "size") as? Int else {
-        print("Failed to parse out library size")
-        Main.exit()
-    }
+    guard let pathComponent = artifactDict.value(forKey: "path") as? String,
+          let _remoteURL = artifactDict.value(forKey: "url") as? String,
+          let remoteURL = URL(string: _remoteURL),
+          let sha1 = artifactDict.value(forKey: "sha1") as? String,
+          let size = artifactDict.value(forKey: "size") as? Int else {
 
-    guard let pathComponent = artifactDict.value(forKey: "path") as? String else {
-        print("Failed to parse out path")
+        print("Failed to parse out parameters from artifact dictionary")
         print(artifactDict)
         Main.exit()
     }
@@ -107,7 +100,7 @@ func processArtifact(name: String, downloadsDict: NSDictionary, librariesURL: UR
     let destinationURL = librariesURL.appendingPathComponent(pathComponent)
 
     let request = DownloadManager.DownloadRequest(taskName: "Library \(name)",
-                                                  remoteURL: libraryDLURL,
+                                                  remoteURL: remoteURL,
                                                   destinationURL: destinationURL,
                                                   size: size,
                                                   sha1: sha1,
@@ -160,38 +153,35 @@ func downloadLibrary(libraryDict: NSDictionary, librariesURL: URL) throws -> [Li
         Main.exit()
     }
 
-    print("---")
-    print(name)
-
     if let rules = libraryDict.value(forKey: "rules") as? [NSDictionary] {
-        print("Parsing rules...")
-        var ruleFailure = false
+        var ruleFailure = true
         for rule in rules {
-            let action = rule.value(forKey: "action") as! String
+            guard let action = rule.value(forKey: "action") as? String else { continue }
+
             if let osd = rule.value(forKey: "os") as? NSDictionary {
                 let name = osd.value(forKey: "name") as? String
-                if action == "allow" && name != "osx" {
-                    ruleFailure = true
-                    break
-                } else if action == "disallow" && name == "osx" {
-                    ruleFailure = true
-                    break
+                if !(name == "osx" || name == "macos") {
+                    // skip this rule modifier
+                    continue
                 }
+            }
+
+            // apply this rule modifier
+            if action == "allow" {
+                ruleFailure = false
+            } else if action == "disallow" {
+                ruleFailure = true
+            } else {
+                print("Unsure how to handle rule action= \(action)")
+                continue
             }
         }
         if ruleFailure {
-            print("Skipping \(name) due to rule")
             return []
         }
     }
 
-    guard let downloadsDict = libraryDict.value(forKey: "downloads") as? NSDictionary else {
-        print("Downloads dictionary missing")
-        print(libraryDict)
-        Main.exit()
-    }
-
-    let libmetadata = try processArtifact(name: name, downloadsDict: downloadsDict, librariesURL: librariesURL)
+    let libmetadata = try processArtifact(name: name, libraryDict: libraryDict, librariesURL: librariesURL)
     let nativemetadata = try processClassifier(name: name, libraryDict: libraryDict, librariesURL: librariesURL)
 
     return [libmetadata, nativemetadata].compactMap { $0 }
