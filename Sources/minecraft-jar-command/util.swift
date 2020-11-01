@@ -73,11 +73,9 @@ func downloadClientJAR(versionDict: NSDictionary, version: String, temporaryDire
     return downloadedClientJAR
 }
 
-func processArtifact(name: String, libraryDict: NSDictionary, librariesURL: URL) throws -> LibraryMetadata {
+func processArtifact(name: String, libraryDict: NSDictionary, librariesURL: URL) throws -> LibraryMetadata? {
     guard let artifactDict = libraryDict.value(forKeyPath: "downloads.artifact") as? NSDictionary else {
-        print("Artifact dictionary missing")
-        print(libraryDict)
-        Main.exit()
+        return nil
     }
 
     guard let pathComponent = artifactDict.value(forKey: "path") as? String,

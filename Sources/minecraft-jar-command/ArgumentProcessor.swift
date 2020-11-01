@@ -10,17 +10,24 @@ import Foundation
 struct ArgumentProcessor {
     private let replacementParameters: [String: String]
 
-    init(versionName: String, assetsVersion: String, assetsDirectory: URL, gameDirectory: URL, nativesDirectory: URL, classPath: String) {
+    init(versionName: String,
+         assetsVersion: String,
+         assetsDirectory: URL,
+         gameDirectory: URL,
+         nativesDirectory: URL,
+         classPath: String,
+         authResults: AuthenticationManager.AuthenticationResults) {
+
         self.replacementParameters = [
-            "auth_player_name": "ezfe",
+            "auth_player_name": authResults.username,
             "version_name": versionName,
             "game_directory": gameDirectory.path,
             "natives_directory": nativesDirectory.relativePath,
             "classpath": classPath,
             "assets_root": assetsDirectory.relativePath,
             "assets_index_name": assetsVersion,
-            "auth_uuid": "1e6e79ca12a64a25ae0535cfa0ae576d",
-            "auth_access_token": "accesstokenhere",
+            "auth_uuid": authResults.userId,
+            "auth_access_token": authResults.accessToken,
             "user_type": "usertype",
             "version_type": "release"
         ]
