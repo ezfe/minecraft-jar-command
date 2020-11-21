@@ -12,10 +12,6 @@ let package = Package(
         .executable(
             name: "minecraft-jar-command",
             targets: ["minecraft-jar-command"]
-        ),
-        .library(
-            name: "MojangAuthentication",
-            targets: ["MojangAuthentication"]
         )
     ],
     dependencies: [
@@ -35,7 +31,9 @@ let package = Package(
             ]),
         .target(
             name: "MojangAuthentication",
-            dependencies: []
+            dependencies: [
+
+            ]
         )
     ]
 )
