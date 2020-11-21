@@ -17,7 +17,7 @@ struct ArgumentProcessor {
          gameDirectory: URL,
          nativesDirectory: URL,
          classPath: String,
-         authResults: AuthenticateResponse) {
+         authResults: RefreshResponse) {
 
         self.replacementParameters = [
             "auth_player_name": authResults.selectedProfile.name,

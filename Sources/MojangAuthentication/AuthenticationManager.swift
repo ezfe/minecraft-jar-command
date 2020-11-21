@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  AuthenticationManager.swift
 //  
 //
 //  Created by Ezekiel Elin on 11/21/20.
@@ -12,25 +12,36 @@ public struct AuthenticationManager {
     static let validationURL = URL(string: "https://authserver.mojang.com/validate")!
     static let refreshURL = URL(string: "https://authserver.mojang.com/refresh")!
     
-    public static func authenticate(username: String, password: String) throws -> AuthenticateResponse {
-        let payload = AuthenticateRequest(username: username, password: password, requestUser: true)
+    public static func authenticate(username: String,
+                                    password: String,
+                                    clientToken: String? = nil) throws -> AuthenticateResponse {
+
+        let payload = AuthenticateRequest(username: username, password: password, clientToken: clientToken, requestUser: true)
         
-        var result: Result<AuthenticateResponse, CError>? = nil
-        
-        let group = DispatchGroup()
-        group.enter()
-        yggdrasilPost(url: AuthenticationManager.authenticationURL, body: payload) { (_result: Result<AuthenticateResponse, CError>) in
-            result = _result
-            group.leave()
-        }
-        group.wait()
-        
-        switch result! {
+        let result: Result<AuthenticateResponse, CError>
+        result = yggdrasilPostSync(url: AuthenticationManager.authenticationURL, body: payload)
+    
+        switch result {
         case .success(let response):
             return response
         case .failure(let error):
             throw error
         }
+    }
+    
+    public static func refresh(accessToken: String, clientToken: String) throws -> RefreshResponse {
+        let payload = RefreshRequest(accessToken: accessToken, clientToken: clientToken, requestUser: true)
+        
+        let result: Result<RefreshResponse, CError>
+        result = yggdrasilPostSync(url: AuthenticationManager.refreshURL, body: payload)
+    
+        switch result {
+        case .success(let response):
+            return response
+        case .failure(let error):
+            throw error
+        }
+
     }
 
 //    public func refresh() throws -> AuthenticationResults? {

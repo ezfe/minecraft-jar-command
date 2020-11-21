@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  CommonRequest.swift
 //  
 //
 //  Created by Ezekiel Elin on 11/21/20.
@@ -18,6 +18,21 @@ struct YggdrasilError: Decodable {
     let error: String
     let errorMessage: String
 }
+
+func yggdrasilPostSync<BodyType: Encodable, ResponseType: Decodable>(url: URL, body: BodyType) -> Result<ResponseType, CError> {
+    var result: Result<ResponseType, CError>? = nil
+    
+    let group = DispatchGroup()
+    group.enter()
+    yggdrasilPost(url: url, body: body) { (_result: Result<ResponseType, CError>) in
+        result = _result
+        group.leave()
+    }
+    group.wait()
+    
+    return result!
+}
+
 
 func yggdrasilPost<BodyType: Encodable,
                    ResponseType: Decodable>(url: URL,
@@ -54,9 +69,6 @@ func yggdrasilPost<BodyType: Encodable,
             return
         }
         
-        let string = String(data: data, encoding: .utf8)
-        print(string ?? "unable to decode body")
-
         // Decode the Data
         do {
             if httpResponse.statusCode == 200 {

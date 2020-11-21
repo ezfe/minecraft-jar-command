@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  RefreshResponse.swift
 //  
 //
 //  Created by Ezekiel Elin on 11/21/20.
@@ -7,12 +7,11 @@
 
 import Foundation
 
-public struct AuthenticateResponse: Decodable {
+public struct RefreshResponse: Decodable {
     let user: User
 
     public let accessToken: String
-    public let clientToken: String
+    let clientToken: String
     
-    let availableProfiles: [Profile]
     public let selectedProfile: Profile
 }
