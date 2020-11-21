@@ -15,12 +15,10 @@ public struct AuthenticationManager {
     public static func authenticate(username: String,
                                     password: String,
                                     clientToken: String? = nil) throws -> AuthenticateResponse {
-
         let payload = AuthenticateRequest(username: username, password: password, clientToken: clientToken, requestUser: true)
         
         let result: Result<AuthenticateResponse, CError>
-        result = yggdrasilPostSync(url: AuthenticationManager.authenticationURL, body: payload)
-    
+        result = yggdrasilPost(url: AuthenticationManager.authenticationURL, body: payload)
         switch result {
         case .success(let response):
             return response
@@ -29,11 +27,21 @@ public struct AuthenticationManager {
         }
     }
     
+    public static func authenticate(username: String,
+                                    password: String,
+                                    clientToken: String? = nil,
+                                    callback: @escaping (Result<AuthenticateResponse, CError>) -> Void) {
+
+        let payload = AuthenticateRequest(username: username, password: password, clientToken: clientToken, requestUser: true)
+        
+        yggdrasilPost(url: AuthenticationManager.authenticationURL, body: payload, callback: callback)
+    }
+    
     public static func refresh(accessToken: String, clientToken: String) throws -> RefreshResponse {
         let payload = RefreshRequest(accessToken: accessToken, clientToken: clientToken, requestUser: true)
         
         let result: Result<RefreshResponse, CError>
-        result = yggdrasilPostSync(url: AuthenticationManager.refreshURL, body: payload)
+        result = yggdrasilPost(url: AuthenticationManager.refreshURL, body: payload)
     
         switch result {
         case .success(let response):

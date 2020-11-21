@@ -7,19 +7,19 @@
 
 import Foundation
 
-enum CError: Error {
+public enum CError: Error {
     case mojangErorr(YggdrasilError)
     case networkError(String)
     case encodingError(String)
     case decodingError(String)
 }
 
-struct YggdrasilError: Decodable {
+public struct YggdrasilError: Decodable {
     let error: String
     let errorMessage: String
 }
 
-func yggdrasilPostSync<BodyType: Encodable, ResponseType: Decodable>(url: URL, body: BodyType) -> Result<ResponseType, CError> {
+func yggdrasilPost<BodyType: Encodable, ResponseType: Decodable>(url: URL, body: BodyType) -> Result<ResponseType, CError> {
     var result: Result<ResponseType, CError>? = nil
     
     let group = DispatchGroup()
