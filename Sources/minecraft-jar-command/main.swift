@@ -1,5 +1,6 @@
 import Foundation
 import ArgumentParser
+import MojangAuthentication
 
 struct Main: ParsableCommand {
     @Option(help: "The Minecraft version to download")
@@ -37,7 +38,7 @@ struct Main: ParsableCommand {
     var clientToken: String
 
     mutating func run() throws {
-        let auth = AuthenticationManager(accessToken: self.accessToken, clientToken: self.clientToken)
+        let auth = MojangAuth(accessToken: self.accessToken, clientToken: self.clientToken)
         guard let authResults = try auth.refresh() else {
             Main.exit(withError: CustomError.authenticationFailed)
         }

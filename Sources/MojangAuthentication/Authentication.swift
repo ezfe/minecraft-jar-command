@@ -2,29 +2,29 @@
 //  File.swift
 //  
 //
-//  Created by Ezekiel Elin on 11/1/20.
+//  Created by Ezekiel Elin on 11/21/20.
 //
 
 import Foundation
 
-struct AuthenticationManager {
+public struct MojangAuth {
     let accessToken: String
     let clientToken: String
 
     static let validationURL = URL(string: "https://authserver.mojang.com/validate")!
     static let refreshURL = URL(string: "https://authserver.mojang.com/refresh")!
 
-    init(accessToken: String, clientToken: String) {
+    public init(accessToken: String, clientToken: String) {
         self.accessToken = accessToken
         self.clientToken = clientToken
     }
 
-    func refresh() throws -> AuthenticationResults? {
+    public func refresh() throws -> AuthenticationResults? {
         let payload = RefreshPayload(accessToken: self.accessToken, clientToken: self.clientToken, requestUser: true)
         let encoder = JSONEncoder()
         let encoded = try encoder.encode(payload)
 
-        var request = URLRequest(url: AuthenticationManager.refreshURL)
+        var request = URLRequest(url: MojangAuth.refreshURL)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpMethod = "POST"
         request.httpBody = encoded
@@ -54,7 +54,7 @@ struct AuthenticationManager {
     }
 }
 
-fileprivate extension AuthenticationManager {
+fileprivate extension MojangAuth {
     struct ValidatePayload: Encodable {
         let accessToken: String
         let clientToken: String
@@ -84,10 +84,10 @@ fileprivate extension AuthenticationManager {
     }
 }
 
-extension AuthenticationManager {
-    struct AuthenticationResults {
-        let username: String
-        let userId: String
-        let accessToken: String
+extension MojangAuth {
+    public struct AuthenticationResults {
+        public let username: String
+        public let userId: String
+        public let accessToken: String
     }
 }

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import MojangAuthentication
 
 struct ArgumentProcessor {
     private let replacementParameters: [String: String]
@@ -16,7 +17,7 @@ struct ArgumentProcessor {
          gameDirectory: URL,
          nativesDirectory: URL,
          classPath: String,
-         authResults: AuthenticationManager.AuthenticationResults) {
+         authResults: MojangAuth.AuthenticationResults) {
 
         self.replacementParameters = [
             "auth_player_name": authResults.username,

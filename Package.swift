@@ -8,6 +8,16 @@ let package = Package(
     platforms: [
         .macOS(.v10_15)
     ],
+    products: [
+        .executable(
+            name: "minecraft-jar-command",
+            targets: ["minecraft-jar-command"]
+        ),
+        .library(
+            name: "MojangAuthentication",
+            targets: ["MojangAuthentication"]
+        )
+    ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "0.3.1"),
@@ -20,7 +30,12 @@ let package = Package(
             name: "minecraft-jar-command",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                .product(name: "Crypto", package: "swift-crypto")
-            ])
+                .product(name: "Crypto", package: "swift-crypto"),
+                .target(name: "MojangAuthentication")
+            ]),
+        .target(
+            name: "MojangAuthentication",
+            dependencies: []
+        )
     ]
 )
