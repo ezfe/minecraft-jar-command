@@ -6,18 +6,7 @@
 //
 
 import Foundation
-
-public enum CError: Error {
-    case mojangErorr(YggdrasilError)
-    case networkError(String)
-    case encodingError(String)
-    case decodingError(String)
-}
-
-public struct YggdrasilError: Decodable {
-    let error: String
-    let errorMessage: String
-}
+import Common
 
 func yggdrasilPost<BodyType: Encodable, ResponseType: Decodable>(url: URL, body: BodyType) -> Result<ResponseType, CError> {
     var result: Result<ResponseType, CError>? = nil

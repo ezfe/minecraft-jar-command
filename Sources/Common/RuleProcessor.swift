@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct RuleProcessor {
+public struct RuleProcessor {
     /**
      * Process a list of rules
      *
@@ -15,7 +15,7 @@ struct RuleProcessor {
      *   - rules: The list of clauses in the rule
      * - Returns: A boolean indicating whether the rules passed (`true`) or not (`false`)
      */
-    static func verifyRulePasses(_ clauses: [NSDictionary]) -> Bool {
+    public static func verifyRulePasses(_ clauses: [NSDictionary]) -> Bool {
         var ruleFailure = true
         for rule in clauses {
             guard let action = rule.value(forKey: "action") as? String else { continue }

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Common
 
 public struct AuthenticationManager {
     static let authenticationURL = URL(string: "https://authserver.mojang.com/authenticate")!

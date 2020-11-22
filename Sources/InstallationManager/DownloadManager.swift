@@ -7,6 +7,7 @@
 
 import Foundation
 import Crypto
+import Common
 
 struct DownloadManager {
     static let shared = DownloadManager()
@@ -95,10 +96,10 @@ struct DownloadManager {
                                        withIntermediateDirectories: true)
             }
         } catch let err {
-            throw CustomError.filesystemError(err.localizedDescription)
+            throw CError.filesystemError(err.localizedDescription)
         }
 
-        var receivedError: CustomError? = nil
+        var receivedError: CError? = nil
         let group = DispatchGroup()
         group.enter()
         if request.verbose {
@@ -113,7 +114,7 @@ struct DownloadManager {
                 print("Download completed...")
             }
             guard let temporaryURL = temporaryURL, error == nil else {
-                receivedError = .fileDownloadError(error?.localizedDescription ?? "Unknown error download error")
+                receivedError = .networkError(error?.localizedDescription ?? "Unknown error download error")
                 return
             }
 

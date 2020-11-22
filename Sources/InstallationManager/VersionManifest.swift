@@ -7,19 +7,19 @@
 
 import Foundation
 
-struct VersionManifest: Decodable {
+public struct VersionManifest: Decodable {
     let latest: Latest
     let versions: [Version]
 
-    struct Version: Decodable {
-        let id: String
+    public struct Version: Decodable {
+        public let id: String
         let type: String
-        let url: URL
+        public let url: URL
         let time: Date
         let releaseTime: Date
     }
 
-    struct Latest: Decodable {
+    public struct Latest: Decodable {
         let release: String
         let snapshot: String
     }

@@ -8,6 +8,8 @@
 import Foundation
 import MojangAuthentication
 import ArgumentParser
+import Common
+import InstallationManager
 
 struct RunCommand: ParsableCommand {
     static var configuration = CommandConfiguration(
@@ -52,10 +54,10 @@ struct RunCommand: ParsableCommand {
     mutating func run() throws {
         let auth = try AuthenticationManager.refresh(accessToken: accessToken, clientToken: clientToken)
 
-        let versionManifestEntry = getManifest(version: self.version)
+        let versionManifestEntry = try getManifest(version: self.version)
 
         print("Downloading \(versionManifestEntry.id) package info")
-        let versionManifestData = retrieveData(url: versionManifestEntry.url)
+        let versionManifestData = try retrieveData(url: versionManifestEntry.url)
         guard let versionDict = try JSONSerialization.jsonObject(with: versionManifestData) as? NSDictionary else {
             print("Failed to download \(versionManifestEntry.id) package info")
             Main.exit()

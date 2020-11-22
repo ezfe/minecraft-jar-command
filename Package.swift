@@ -27,11 +27,24 @@ let package = Package(
             name: "minecraft-jar-command",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                .product(name: "Crypto", package: "swift-crypto"),
-                .target(name: "MojangAuthentication")
+                .target(name: "MojangAuthentication"),
+                .target(name: "InstallationManager")
             ]),
         .target(
             name: "MojangAuthentication",
+            dependencies: [
+                .target(name: "Common")
+            ]
+        ),
+        .target(
+            name: "InstallationManager",
+            dependencies: [
+                .product(name: "Crypto", package: "swift-crypto"),
+                .target(name: "Common")
+            ]
+        ),
+        .target(
+            name: "Common",
             dependencies: [
 
             ]

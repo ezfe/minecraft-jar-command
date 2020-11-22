@@ -7,6 +7,7 @@
 
 import Foundation
 import MojangAuthentication
+import Common
 
 struct ArgumentProcessor {
     private let replacementParameters: [String: String]
