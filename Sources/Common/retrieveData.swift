@@ -7,29 +7,34 @@
 
 import Foundation
 
-public func retrieveData(url: URL) throws -> Data {
-    var foundData: Data? = nil
-    let semaphore = DispatchSemaphore(value: 0)
-
-    var error: Error? = nil
-    
+public func retrieveData(url: URL, callback: @escaping (Result<Data, Error>) -> Void) {
     let task = URLSession.shared.dataTask(with: url) { (data, response, _error) in
         guard let data = data else {
-            error = _error ?? CError.networkError("No data found and no error provided")
+            let error = _error ?? CError.networkError("No data found and no error provided")
+            callback(.failure(error))
             return
         }
 
-        foundData = data
-
-        semaphore.signal()
+        callback(.success(data))
     }
-
     task.resume()
-    semaphore.wait()
+}
+
+public func retrieveData(url: URL) throws -> Data {
+    var result: Result<Data, Error> = .failure(CError.unknownError("Missing Result Object"))
+
+    let group = DispatchGroup()
+    group.enter()
+    retrieveData(url: url) { (_result) in
+        result = _result
+        group.leave()
+    }
+    group.wait()
     
-    if let error = error {
+    switch result {
+    case .success(let data):
+        return data
+    case .failure(let error):
         throw error
     }
-    
-    return foundData!
 }

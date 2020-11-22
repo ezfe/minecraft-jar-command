@@ -54,8 +54,16 @@ struct RunCommand: ParsableCommand {
     mutating func run() throws {
         let auth = try AuthenticationManager.refresh(accessToken: accessToken, clientToken: clientToken)
 
-        let versionManifestEntry = try getManifest(version: self.version)
-
+        // Get Version Manifest and Specific Entry
+        let versionManifest = try VersionManifest.downloadManifest()
+        let versionManifestEntry: VersionManifest.Version
+        if let userRequestedVersion = version {
+            versionManifestEntry = try versionManifest.get(version: .custom(userRequestedVersion))
+        } else {
+            versionManifestEntry = try versionManifest.get(version: .release)
+        }
+        
+        // Next thing...
         print("Downloading \(versionManifestEntry.id) package info")
         let versionManifestData = try retrieveData(url: versionManifestEntry.url)
         guard let versionDict = try JSONSerialization.jsonObject(with: versionManifestData) as? NSDictionary else {
