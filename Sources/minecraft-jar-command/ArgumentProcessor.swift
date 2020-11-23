@@ -47,7 +47,7 @@ struct ArgumentProcessor {
     private func process(arguments: [VersionPackage.Arguments.Argument]) -> FlattenSequence<[[String]]> {
         let processedArguments = arguments
             .compactMap { argument -> [String]? in
-                guard RuleProcessor.verifyRulesPass(argument.rules) else {
+                guard RuleProcessor.verifyRulesPass(argument.rules, with: .none) else {
                     return nil
                 }
                 return argument.values.map { applyVariableReplacement(source: $0, parameters: replacementParameters) }

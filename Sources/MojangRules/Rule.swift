@@ -14,7 +14,7 @@ public struct Rule: Decodable {
     let os: OperatingSystem?
     
     /// Filter this rule based on a feature being enabled or disabled
-    let feature: Feature?
+    let features: Feature?
     
     struct OperatingSystem: Decodable {
         let name: String?

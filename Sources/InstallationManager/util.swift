@@ -74,10 +74,8 @@ func processClassifier(libraryInfo: VersionPackage.Library, librariesURL: URL) t
 }
 
 func downloadLibrary(libraryInfo: VersionPackage.Library, librariesURL: URL) throws -> [LibraryMetadata] {
-    
-
     if let rules = libraryInfo.rules {
-        if !RuleProcessor.verifyRulesPass(rules) {
+        if !RuleProcessor.verifyRulesPass(rules, with: .none) {
             return []
         }
     }
