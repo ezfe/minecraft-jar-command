@@ -10,9 +10,9 @@ import Common
 
 public struct VersionManifest: Decodable {
     let latest: Latest
-    let versions: [Version]
+    let versions: [VersionMetadata]
 
-    public struct Version: Decodable {
+    public struct VersionMetadata: Decodable {
         public let id: String
         let type: String
         public let url: URL
@@ -79,7 +79,7 @@ public extension VersionManifest {
         case custom(String)
     }
     
-    func get(version: VersionType) throws -> VersionManifest.Version {
+    func get(version: VersionType) throws -> VersionManifest.VersionMetadata {
         let versionString: String
         switch version {
         case .release:

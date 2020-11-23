@@ -18,8 +18,8 @@ struct DownloadManager {
         print("==== Starting Download Batch : \(batchName) ====")
 
         let totalSize = batch.map { $0.size }.reduce(0, +)
-        var currentTotal = 0
-        var lastPercent = 0
+        var currentTotal: UInt = 0
+        var lastPercent: UInt = 0
 
         let reportingQueue = DispatchQueue(label: "reporting-queue")
         let group = DispatchGroup()
@@ -139,14 +139,14 @@ extension DownloadManager {
         let taskName: String
         let remoteURL: URL
         let destinationURL: URL
-        let size: Int
+        let size: UInt
         let sha1: String?
         let verbose: Bool
 
         internal init(taskName: String,
                       remoteURL: URL,
                       destinationURL: URL,
-                      size: Int,
+                      size: UInt,
                       sha1: String? = nil,
                       verbose: Bool = true) {
             self.taskName = taskName

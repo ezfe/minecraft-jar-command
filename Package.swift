@@ -40,7 +40,14 @@ let package = Package(
             name: "InstallationManager",
             dependencies: [
                 .product(name: "Crypto", package: "swift-crypto"),
-                .target(name: "Common")
+                .target(name: "Common"),
+                .target(name: "Rules")
+            ]
+        ),
+        .target(
+            name: "Rules",
+            dependencies: [
+
             ]
         ),
         .target(
@@ -48,6 +55,6 @@ let package = Package(
             dependencies: [
 
             ]
-        )
+        ),
     ]
 )

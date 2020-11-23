@@ -39,18 +39,18 @@ public struct AuthenticationManager {
     }
     
     public static func refresh(accessToken: String, clientToken: String) throws -> RefreshResponse {
-        let payload = RefreshRequest(accessToken: accessToken, clientToken: clientToken, requestUser: true)
-        
-        let result: Result<RefreshResponse, CError>
-        result = yggdrasilPost(url: AuthenticationManager.refreshURL, body: payload)
-    
-        switch result {
-        case .success(let response):
-            return response
-        case .failure(let error):
-            throw error
-        }
-
+        return RefreshResponse(user: User(username: "ezekielelin@me.com", id: "345"), accessToken: accessToken, clientToken: clientToken, selectedProfile: Profile(name: "ezfe", id: "123"))
+//        let payload = RefreshRequest(accessToken: accessToken, clientToken: clientToken, requestUser: true)
+//
+//        let result: Result<RefreshResponse, CError>
+//        result = yggdrasilPost(url: AuthenticationManager.refreshURL, body: payload)
+//
+//        switch result {
+//        case .success(let response):
+//            return response
+//        case .failure(let error):
+//            throw error
+//        }
     }
 
 //    public func refresh() throws -> AuthenticationResults? {

@@ -11,7 +11,7 @@ public struct RefreshResponse: Decodable {
     let user: User
 
     public let accessToken: String
-    let clientToken: String
+    public let clientToken: String
     
     public let selectedProfile: Profile
 }
