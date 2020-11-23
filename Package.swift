@@ -31,21 +31,21 @@ let package = Package(
                 .target(name: "InstallationManager")
             ]),
         .target(
+            name: "InstallationManager",
+            dependencies: [
+                .product(name: "Crypto", package: "swift-crypto"),
+                .target(name: "Common"),
+                .target(name: "MojangRules")
+            ]
+        ),
+        .target(
             name: "MojangAuthentication",
             dependencies: [
                 .target(name: "Common")
             ]
         ),
         .target(
-            name: "InstallationManager",
-            dependencies: [
-                .product(name: "Crypto", package: "swift-crypto"),
-                .target(name: "Common"),
-                .target(name: "Rules")
-            ]
-        ),
-        .target(
-            name: "Rules",
+            name: "MojangRules",
             dependencies: [
 
             ]

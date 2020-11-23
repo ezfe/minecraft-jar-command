@@ -7,11 +7,11 @@
 
 import Foundation
 
-public struct RefreshResponse: Decodable {
+struct RefreshResponse: Decodable {
     let user: User
 
-    public let accessToken: String
-    public let clientToken: String
+    let accessToken: String
+    let clientToken: String
     
-    public let selectedProfile: Profile
+    let selectedProfile: Profile
 }

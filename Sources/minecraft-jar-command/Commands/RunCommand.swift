@@ -52,7 +52,8 @@ struct RunCommand: ParsableCommand {
     var clientToken: String
     
     mutating func run() throws {
-        let auth = try AuthenticationManager.refresh(accessToken: accessToken, clientToken: clientToken)
+//        let auth = try AuthenticationManager.refresh(accessToken: accessToken, clientToken: clientToken)
+        let auth = AuthResult(accessToken: accessToken, clientToken: clientToken, profile: Profile(name: "ezfe", id: "id123"))
         print("\n\n")
         print("swift run minecraft-jar-command \(auth.accessToken) \(auth.clientToken)")
         print("\n\n")

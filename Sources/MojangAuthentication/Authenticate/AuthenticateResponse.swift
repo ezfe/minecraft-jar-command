@@ -7,12 +7,12 @@
 
 import Foundation
 
-public struct AuthenticateResponse: Decodable {
+struct AuthenticateResponse: Decodable {
     let user: User
 
-    public let accessToken: String
-    public let clientToken: String
+    let accessToken: String
+    let clientToken: String
     
     let availableProfiles: [Profile]
-    public let selectedProfile: Profile
+    let selectedProfile: Profile
 }

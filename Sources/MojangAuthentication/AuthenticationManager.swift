@@ -15,14 +15,14 @@ public struct AuthenticationManager {
     
     public static func authenticate(username: String,
                                     password: String,
-                                    clientToken: String? = nil) throws -> AuthenticateResponse {
+                                    clientToken: String? = nil) throws -> AuthResult {
         let payload = AuthenticateRequest(username: username, password: password, clientToken: clientToken, requestUser: true)
         
         let result: Result<AuthenticateResponse, CError>
         result = yggdrasilPost(url: AuthenticationManager.authenticationURL, body: payload)
         switch result {
         case .success(let response):
-            return response
+            return AuthResult(response)
         case .failure(let error):
             throw error
         }
@@ -31,26 +31,32 @@ public struct AuthenticationManager {
     public static func authenticate(username: String,
                                     password: String,
                                     clientToken: String? = nil,
-                                    callback: @escaping (Result<AuthenticateResponse, CError>) -> Void) {
+                                    callback: @escaping (Result<AuthResult, CError>) -> Void) {
 
         let payload = AuthenticateRequest(username: username, password: password, clientToken: clientToken, requestUser: true)
         
-        yggdrasilPost(url: AuthenticationManager.authenticationURL, body: payload, callback: callback)
+        yggdrasilPost(url: AuthenticationManager.authenticationURL, body: payload) { (result: Result<AuthenticateResponse, CError>) in
+            switch result {
+            case .success(let response):
+                callback(.success(AuthResult(response)))
+            case .failure(let error):
+                callback(.failure(error))
+            }
+        }
     }
     
-    public static func refresh(accessToken: String, clientToken: String) throws -> RefreshResponse {
-        return RefreshResponse(user: User(username: "ezekielelin@me.com", id: "345"), accessToken: accessToken, clientToken: clientToken, selectedProfile: Profile(name: "ezfe", id: "123"))
-//        let payload = RefreshRequest(accessToken: accessToken, clientToken: clientToken, requestUser: true)
-//
-//        let result: Result<RefreshResponse, CError>
-//        result = yggdrasilPost(url: AuthenticationManager.refreshURL, body: payload)
-//
-//        switch result {
-//        case .success(let response):
-//            return response
-//        case .failure(let error):
-//            throw error
-//        }
+    public static func refresh(accessToken: String, clientToken: String) throws -> AuthResult {
+        let payload = RefreshRequest(accessToken: accessToken, clientToken: clientToken, requestUser: true)
+
+        let result: Result<RefreshResponse, CError>
+        result = yggdrasilPost(url: AuthenticationManager.refreshURL, body: payload)
+
+        switch result {
+        case .success(let response):
+            return AuthResult(response)
+        case .failure(let error):
+            throw error
+        }
     }
 
 //    public func refresh() throws -> AuthenticationResults? {

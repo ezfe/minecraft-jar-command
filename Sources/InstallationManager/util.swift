@@ -7,7 +7,7 @@
 
 import Foundation
 import Common
-import Rules
+import MojangRules
 
 public func downloadClientJAR(versionInfo: VersionPackage, version: String, temporaryDirectoryURL: URL) throws -> URL {
     guard let remoteURL = URL(string: versionInfo.downloads.client.url) else {

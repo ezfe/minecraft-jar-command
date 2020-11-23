@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import Rules
+import MojangRules
 import Common
 
 /**

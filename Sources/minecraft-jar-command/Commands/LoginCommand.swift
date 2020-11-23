@@ -32,7 +32,7 @@ struct LoginCommand: ParsableCommand {
         print("Access Token: \(auth.accessToken)")
         print("Client Token: \(auth.clientToken)")
         print("=========================")
-        print("Minecraft Username: \(auth.selectedProfile.name)")
-        print("Minecraft User ID:  \(auth.selectedProfile.id)")
+        print("Minecraft Username: \(auth.profile.name)")
+        print("Minecraft User ID:  \(auth.profile.id)")
     }
 }

@@ -8,7 +8,7 @@
 import Foundation
 import MojangAuthentication
 import InstallationManager
-import Rules
+import MojangRules
 
 struct ArgumentProcessor {
     private let replacementParameters: [String: String]
@@ -19,17 +19,17 @@ struct ArgumentProcessor {
          gameDirectory: URL,
          nativesDirectory: URL,
          classPath: String,
-         authResults: RefreshResponse) {
+         authResults: AuthResult) {
 
         self.replacementParameters = [
-            "auth_player_name": authResults.selectedProfile.name,
+            "auth_player_name": authResults.profile.name,
             "version_name": versionName,
             "game_directory": gameDirectory.path,
             "natives_directory": nativesDirectory.relativePath,
             "classpath": classPath,
             "assets_root": assetsDirectory.relativePath,
             "assets_index_name": assetsVersion,
-            "auth_uuid": authResults.selectedProfile.id,
+            "auth_uuid": authResults.profile.id,
             "auth_access_token": authResults.accessToken,
             "user_type": "usertype",
             "version_type": "release"
