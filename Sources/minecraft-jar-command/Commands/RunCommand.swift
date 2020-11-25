@@ -83,47 +83,49 @@ struct RunCommand: ParsableCommand {
             Main.exit()
         }
         
-        let workingDirectory: URL
-        if let requestedDirectory = self.workingDirectory {
-            let requestedDirectoryURL = URL(fileURLWithPath: requestedDirectory)
-            try FileManager.default.createDirectory(at: requestedDirectoryURL, withIntermediateDirectories: true)
-            workingDirectory = requestedDirectoryURL
-        } else {
-            workingDirectory = URL(fileURLWithPath: self.workingDirectory ?? NSTemporaryDirectory(),
-                                   isDirectory: true)
-                .appendingPathComponent("minecraft-jar-command", isDirectory: true)
-        }
+        let gameDirectory = self.gameDirectory != nil ? URL(fileURLWithPath: self.gameDirectory!) : nil
         
-        let gameDirectory: URL
-        if let requestedDirectory = self.gameDirectory {
-            let requestedDirectoryURL = URL(fileURLWithPath: requestedDirectory)
-            try FileManager.default.createDirectory(at: requestedDirectoryURL, withIntermediateDirectories: true)
-            gameDirectory = requestedDirectoryURL
+        let installationManager: InstallationManager
+        if let workingDirectory = workingDirectory {
+            installationManager = try InstallationManager(requestedDirectory: URL(fileURLWithPath: workingDirectory), gameDirectory: gameDirectory, versionInfo: versionInfo)
         } else {
-            gameDirectory = workingDirectory
+            installationManager = try InstallationManager(gameDirectory: gameDirectory, versionInfo: versionInfo)
         }
-        
-        try FileManager.default.createDirectory(at: workingDirectory, withIntermediateDirectories: true)
         
         //        print("\n\nDownloading game files to: \(workingDirectory.path).\n\n>>>Press any key to continue")
         //        let _ = readLine()
         
-        let clientJAR = try downloadClientJAR(versionInfo: versionInfo,
-                                              version: versionManifestEntry.id,
-                                              temporaryDirectoryURL: workingDirectory)
-        
-        let (assetsDir, assetsVersion) = try downloadAssets(versionInfo: versionInfo, temporaryDirectoryURL: workingDirectory)
-        
-        let libraries = try downloadLibraries(versionInfo: versionInfo, temporaryDirectoryURL: workingDirectory)
-        
-        let nativeDirectory = URL(fileURLWithPath: "natives", isDirectory: true, relativeTo: workingDirectory)
-        if FileManager.default.fileExists(atPath: nativeDirectory.path) {
-            try FileManager.default.removeItem(at: nativeDirectory)
+        var clientJAR: URL! = nil
+        let group = DispatchGroup()
+        group.enter()
+        installationManager.downloadJar { result in
+            switch result {
+                case .success(let jar):
+                    clientJAR = jar
+                    group.leave()
+                case .failure(let error):
+                    Main.exit(withError: error)
+            }
         }
-        try FileManager.default.createDirectory(at: nativeDirectory, withIntermediateDirectories: true)
+        group.wait()
+        
+        let assetsVersion = try downloadAssets(versionInfo: versionInfo, installationManager: installationManager)
+        
+        var libraries: [LibraryMetadata]! = nil
+        group.enter()
+        installationManager.downloadLibraries { result in
+            switch result {
+                case .success(let metadata):
+                    libraries = metadata
+                    group.leave()
+                case .failure(let error):
+                    Main.exit(withError: error)
+            }
+        }
+        group.wait()
         
         try libraries.filter { $0.isNative }.forEach { libMetadata in
-            let target = nativeDirectory.appendingPathComponent(libMetadata.localURL.lastPathComponent)
+            let target = installationManager.nativesDirectory.appendingPathComponent(libMetadata.localURL.lastPathComponent)
             try FileManager.default.copyItem(at: libMetadata.localURL, to: target)
         }
         
@@ -132,9 +134,7 @@ struct RunCommand: ParsableCommand {
         
         let argumentProcessor = ArgumentProcessor(versionName: versionManifestEntry.id,
                                                   assetsVersion: assetsVersion,
-                                                  assetsDirectory: assetsDir,
-                                                  gameDirectory: gameDirectory,
-                                                  nativesDirectory: nativeDirectory,
+                                                  installationManager: installationManager,
                                                   classPath: classPath,
                                                   authResults: auth)
         
@@ -151,7 +151,7 @@ struct RunCommand: ParsableCommand {
         proc.arguments?.append(versionInfo.mainClass)
         proc.arguments?.append(contentsOf: gameArgsString)
         
-        proc.currentDirectoryURL = workingDirectory
+        proc.currentDirectoryURL = installationManager.baseDirectory
         
         let pipe = Pipe()
         proc.standardOutput = pipe

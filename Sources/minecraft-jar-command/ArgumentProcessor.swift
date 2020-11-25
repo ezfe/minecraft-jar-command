@@ -15,19 +15,17 @@ struct ArgumentProcessor {
 
     init(versionName: String,
          assetsVersion: String,
-         assetsDirectory: URL,
-         gameDirectory: URL,
-         nativesDirectory: URL,
+         installationManager: InstallationManager,
          classPath: String,
          authResults: AuthResult) {
 
         self.replacementParameters = [
             "auth_player_name": authResults.profile.name,
             "version_name": versionName,
-            "game_directory": gameDirectory.path,
-            "natives_directory": nativesDirectory.relativePath,
+            "game_directory": installationManager.gameDirectory.path,
+            "natives_directory": installationManager.nativesDirectory.relativePath,
             "classpath": classPath,
-            "assets_root": assetsDirectory.relativePath,
+            "assets_root": installationManager.assetsDirectory.relativePath,
             "assets_index_name": assetsVersion,
             "auth_uuid": authResults.profile.id,
             "auth_access_token": authResults.accessToken,

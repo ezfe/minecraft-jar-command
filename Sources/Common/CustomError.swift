@@ -13,6 +13,7 @@ public enum CError: Error {
     case encodingError(String)
     case decodingError(String)
     case filesystemError(String)
+    case stateError(String)
     case unknownError(String)
 }
 

@@ -14,123 +14,85 @@ struct DownloadManager {
 
     fileprivate init() { }
 
-    func download(_ batch: [DownloadRequest], named batchName: String) throws {
-        print("==== Starting Download Batch : \(batchName) ====")
+    func download(_ batch: [DownloadRequest],
+                  named batchName: String,
+                  progress: @escaping (Double) -> Void,
+                  callback: @escaping (Result<Void, CError>) -> Void) {
+        
+        DispatchQueue.global(qos: .utility).async {
+            print("==== Starting Download Batch : \(batchName) ====")
+            
+            let reportingQueue = DispatchQueue(label: "reporting-queue")
+            let totalSize = batch.map { $0.size }.reduce(0, +)
+            var currentTotal: UInt = 0
+            
+            var foundError: CError? = nil
+            
+            for request in batch {
+                self.download(request) { result in
+                    switch result {
+                        case .success(_):
+                            break
+                        case .failure(let error):
+                            foundError = error
+                            return
+                    }
 
-        let totalSize = batch.map { $0.size }.reduce(0, +)
-        var currentTotal: UInt = 0
-        var lastPercent: UInt = 0
-
-        let reportingQueue = DispatchQueue(label: "reporting-queue")
-        let group = DispatchGroup()
-
-        DispatchQueue.concurrentPerform(iterations: batch.count) { i in
-            group.enter()
-            let request = batch[i]
-            try? self.download(request)
-
-            reportingQueue.sync {
-                currentTotal += request.size
-                let currentPercent = (100 * currentTotal) / totalSize
-                if currentPercent > lastPercent {
-                    print("\(currentPercent)% done \r", terminator: "")
+                    reportingQueue.sync {
+                        currentTotal += request.size
+                        progress(Double(currentTotal) / Double(totalSize))
+                    }
                 }
-                lastPercent = currentPercent
             }
-            group.leave()
-        }
 
-        group.wait()
-        print("")
+            if let error = foundError {
+                callback(.failure(error))
+            } else {
+                callback(.success(()))
+            }
+        }
     }
 
-    func download(_ request: DownloadRequest) throws {
-        if request.verbose {
-            print("==== Starting Download Task : \(request.taskName) ====")
-        }
-
-        defer {
-            if request.verbose {
-                print("==== Completed Download Task : \(request.taskName) ====")
-            }
-        }
-
+    func download(_ request: DownloadRequest, callback: @escaping (Result<Void, CError>) -> Void) {
         let fm = FileManager.default
 
         do {
             if fm.fileExists(atPath: request.destinationURL.path) {
-                if request.verbose {
-                    print("Local file already exists...")
-                    print(request.destinationURL.path)
-                }
-
                 if let sha1 = request.sha1 {
-                    if request.verbose {
-                        print("Verifying against provided hash...")
-                    }
                     if let fileData = fm.contents(atPath: request.destinationURL.path) {
                         let foundSha1 = Insecure.SHA1.hash(data: fileData).compactMap { String(format: "%02x", $0) }.joined()
-
                         if foundSha1.lowercased() == sha1 {
-                            if request.verbose {
-                                print("Verified local file hash, task completed...")
-                            }
+                            callback(.success((/* void */)))
                             return
-                        } else if request.verbose {
-                            print("Local file hash does not match, ...")
                         }
-                    } else if request.verbose {
-                        print("Unknown file system state, erasing and downloading...")
                     }
-
-                } else if request.verbose {
-                    print("No hash provided, erasing and downloading...")
                 }
-
                 try fm.removeItem(at: request.destinationURL)
             } else {
-                if request.verbose {
-                    print("File doesn't exist, so ensuring target directory exists...")
-                }
                 try fm.createDirectory(at: request.destinationURL.deletingLastPathComponent(),
                                        withIntermediateDirectories: true)
             }
         } catch let err {
-            throw CError.filesystemError(err.localizedDescription)
+            callback(.failure(CError.filesystemError(err.localizedDescription)))
+            return
         }
 
-        var receivedError: CError? = nil
-        let group = DispatchGroup()
-        group.enter()
-        if request.verbose {
-            print("Starting download...")
-        }
         let task = URLSession.shared.downloadTask(with: request.remoteURL) { (temporaryURL, response, error) in
-            defer {
-                group.leave()
-            }
-
-            if request.verbose {
-                print("Download completed...")
-            }
             guard let temporaryURL = temporaryURL, error == nil else {
-                receivedError = .networkError(error?.localizedDescription ?? "Unknown error download error")
+                callback(.failure(.networkError(error?.localizedDescription ?? "Unknown error download error")))
                 return
             }
 
             do {
                 try FileManager.default.moveItem(at: temporaryURL, to: request.destinationURL)
             } catch let err {
-                receivedError = .filesystemError(err.localizedDescription)
+                callback(.failure(.filesystemError(err.localizedDescription)))
+                return
             }
+            
+            callback(.success((/* void */)))
         }
-
         task.resume()
-        group.wait()
-
-        if let error = receivedError {
-            throw error
-        }
     }
 }
 

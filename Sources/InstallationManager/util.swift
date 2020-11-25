@@ -9,31 +9,14 @@ import Foundation
 import Common
 import MojangRules
 
-public func downloadClientJAR(versionInfo: VersionPackage, version: String, temporaryDirectoryURL: URL) throws -> URL {
-    guard let remoteURL = URL(string: versionInfo.downloads.client.url) else {
-        throw CError.decodingError("Failed to parse out client JAR download URL")
-    }
-    
-    let downloadedClientJAR = URL(fileURLWithPath: "versions/\(version)/\(version).jar", relativeTo: temporaryDirectoryURL)
-
-    let request = DownloadManager.DownloadRequest(taskName: "Client JAR File",
-                                                  remoteURL: remoteURL,
-                                                  destinationURL: downloadedClientJAR,
-                                                  size: versionInfo.downloads.client.size,
-                                                  sha1: versionInfo.downloads.client.sha1)
-    try DownloadManager.shared.download(request)
-
-    return downloadedClientJAR
-}
-
-func processArtifact(libraryInfo: VersionPackage.Library, librariesURL: URL) throws -> LibraryMetadata? {
+func processArtifact(libraryInfo: VersionPackage.Library, installationManager: InstallationManager) throws -> LibraryMetadata? {
     let artifact = libraryInfo.downloads.artifact
     
     guard let remoteURL = URL(string: artifact.url) else {
         throw CError.decodingError("Failed to parse out artifact URL")
     }
     
-    let destinationURL = librariesURL.appendingPathComponent(artifact.path)
+    let destinationURL = installationManager.libraryDirectory.appendingPathComponent(artifact.path)
 
     let request = DownloadManager.DownloadRequest(taskName: "Library \(libraryInfo.name)",
                                                   remoteURL: remoteURL,
@@ -44,7 +27,7 @@ func processArtifact(libraryInfo: VersionPackage.Library, librariesURL: URL) thr
     return LibraryMetadata(localURL: destinationURL, isNative: false, downloadRequest: request)
 }
 
-func processClassifier(libraryInfo: VersionPackage.Library, librariesURL: URL) throws -> LibraryMetadata? {
+func processClassifier(libraryInfo: VersionPackage.Library, installationManager: InstallationManager) throws -> LibraryMetadata? {
 
     guard let nativesMappingDictionary = libraryInfo.natives,
           let nativesMappingKey = nativesMappingDictionary.osx else {
@@ -61,7 +44,7 @@ func processClassifier(libraryInfo: VersionPackage.Library, librariesURL: URL) t
         throw CError.decodingError("Failed to parse out native URL")
     }
 
-    let destinationURL = librariesURL.appendingPathComponent(macosNativeDict.path)
+    let destinationURL = installationManager.libraryDirectory.appendingPathComponent(macosNativeDict.path)
 
     let request = DownloadManager.DownloadRequest(taskName: "Library/Native \(libraryInfo.name)",
                                                   remoteURL: remoteURL,
@@ -73,42 +56,27 @@ func processClassifier(libraryInfo: VersionPackage.Library, librariesURL: URL) t
     return LibraryMetadata(localURL: destinationURL, isNative: true, downloadRequest: request)
 }
 
-func downloadLibrary(libraryInfo: VersionPackage.Library, librariesURL: URL) throws -> [LibraryMetadata] {
+func downloadLibrary(libraryInfo: VersionPackage.Library, installationManager: InstallationManager) throws -> [LibraryMetadata] {
     if let rules = libraryInfo.rules {
         if !RuleProcessor.verifyRulesPass(rules, with: .none) {
             return []
         }
     }
 
-    let libmetadata = try processArtifact(libraryInfo: libraryInfo, librariesURL: librariesURL)
-    let nativemetadata = try processClassifier(libraryInfo: libraryInfo, librariesURL: librariesURL)
+    let libmetadata = try processArtifact(libraryInfo: libraryInfo, installationManager: installationManager)
+    let nativemetadata = try processClassifier(libraryInfo: libraryInfo, installationManager: installationManager)
 
     return [libmetadata, nativemetadata].compactMap { $0 }
 }
 
-public func downloadLibraries(versionInfo: VersionPackage, temporaryDirectoryURL: URL) throws -> [LibraryMetadata] {
-
-    let libraryURL = URL(fileURLWithPath: "libraries",
-                         relativeTo: temporaryDirectoryURL)
-
-    let libraryMetadata = try versionInfo.libraries.compactMap {
-        try downloadLibrary(libraryInfo: $0, librariesURL: libraryURL)
-    }.joined()
-
-    let requests = libraryMetadata.map { $0.downloadRequest }
-    try DownloadManager.shared.download(requests, named: "Libraries")
-
-    return Array(libraryMetadata)
-}
-
-func buildAssetRequest(name: String, hash: String, size: UInt, assetsObjsDirectoryURL: URL) -> Result<DownloadManager.DownloadRequest, CError> {
+func buildAssetRequest(name: String, hash: String, size: UInt, installationManager: InstallationManager) -> Result<DownloadManager.DownloadRequest, CError> {
     let prefix = hash.prefix(2)
 
     guard let downloadURL = URL(string: "https://resources.download.minecraft.net/\(prefix)/\(hash)") else {
         return .failure(CError.encodingError("Failed to build URL for \(name)"))
     }
 
-    let destinationURL = assetsObjsDirectoryURL.appendingPathComponent("\(prefix)/\(hash)")
+    let destinationURL = installationManager.assetsObjectsDirectory.appendingPathComponent("\(prefix)/\(hash)")
 
     let request = DownloadManager.DownloadRequest(taskName: "Asset \(name)",
                                                   remoteURL: downloadURL,
@@ -119,11 +87,8 @@ func buildAssetRequest(name: String, hash: String, size: UInt, assetsObjsDirecto
     return .success(request)
 }
 
-public func downloadAssets(versionInfo: VersionPackage, temporaryDirectoryURL: URL) throws -> (assetsDirectory: URL, assetsVersion: String) {
-    let assetsDirectoryURL = URL(fileURLWithPath: "assets", isDirectory: true, relativeTo: temporaryDirectoryURL)
-    let assetsObjsDirectoryURL = assetsDirectoryURL.appendingPathComponent("objects", isDirectory: true)
-    let assetsIndxsDirectoryURL = assetsDirectoryURL.appendingPathComponent("indexes", isDirectory: true)
-
+public func downloadAssets(versionInfo: VersionPackage, installationManager: InstallationManager) throws -> String {
+    
     let assetIndex = versionInfo.assetIndex
     guard let assetIndexURL = URL(string: assetIndex.url) else {
         throw CError.decodingError("Failed to retrieve asset index URL")
@@ -132,13 +97,12 @@ public func downloadAssets(versionInfo: VersionPackage, temporaryDirectoryURL: U
     let decoder = JSONDecoder()
     let indexData = try retrieveData(url: assetIndexURL)
 
-    let indexJSONFileURL = assetsIndxsDirectoryURL.appendingPathComponent("\(assetIndex.id).json")
-    try FileManager.default.createDirectory(at: assetsIndxsDirectoryURL, withIntermediateDirectories: true)
+    let indexJSONFileURL = installationManager.assetsIndexesDirectory.appendingPathComponent("\(assetIndex.id).json")
     try indexData.write(to: indexJSONFileURL)
 
     let index = try decoder.decode(AssetsIndex.self, from: indexData)
     let downloadRequests = try index.objects.map { (name, metadata) -> DownloadManager.DownloadRequest in
-        let res = buildAssetRequest(name: name, hash: metadata.hash, size: metadata.size, assetsObjsDirectoryURL: assetsObjsDirectoryURL)
+        let res = buildAssetRequest(name: name, hash: metadata.hash, size: metadata.size, installationManager: installationManager)
         switch res {
         case .success(let request):
             return request
@@ -147,7 +111,22 @@ public func downloadAssets(versionInfo: VersionPackage, temporaryDirectoryURL: U
         }
     }
 
-    try DownloadManager.shared.download(downloadRequests, named: "Asset Collection")
+//    try DownloadManager.shared.download(downloadRequests, named: "Asset Collection")
+    var result: Result<Void, CError>? = nil
+    let group = DispatchGroup()
+    group.enter()
+    DownloadManager.shared.download(downloadRequests, named: "Asset Collection") { progress in
+        print("Asset%: \(progress)")
+    } callback: { _result in
+        result = _result
+        group.leave()
+    }
+    group.wait()
 
-    return (assetsObjsDirectoryURL.deletingLastPathComponent(), assetIndex.id)
+    switch result! {
+        case .failure(let error):
+            throw error
+        case .success(_):
+            return assetIndex.id
+    }
 }
