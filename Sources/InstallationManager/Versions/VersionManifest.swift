@@ -31,7 +31,7 @@ public struct VersionManifest: Decodable {
 public extension VersionManifest {
     static let url = URL(string: "https://launchermeta.mojang.com/mc/game/version_manifest.json")!
     
-    static func downloadManifest(callback: @escaping (Result<VersionManifest, Error>) -> Void) {
+    static func downloadManifest(callback: @escaping (Result<VersionManifest, CError>) -> Void) {
         retrieveData(url: url, callback: { (result) in
             switch result {
             case .success(let manifestData):
@@ -45,13 +45,13 @@ public extension VersionManifest {
             
                 callback(.success(manifest))
             case .failure(let error):
-                callback(.failure(error))
+                callback(.failure(.unknownError(error.localizedDescription)))
             }
         })
     }
     
     static func downloadManifest() throws -> VersionManifest {
-        var result: Result<VersionManifest, Error> = .failure(CError.unknownError("Missing Result Object"))
+        var result: Result<VersionManifest, CError> = .failure(CError.unknownError("Missing Result Object"))
         
         let group = DispatchGroup()
         group.enter()
@@ -79,7 +79,7 @@ public extension VersionManifest {
         case custom(String)
     }
     
-    func get(version: VersionType) throws -> VersionManifest.VersionMetadata {
+    func get(version: VersionType) -> Result<VersionManifest.VersionMetadata, CError> {
         let versionString: String
         switch version {
         case .release:
@@ -95,9 +95,9 @@ public extension VersionManifest {
         })
         
         if let versionManifestEntry = versionManifestEntry {
-            return versionManifestEntry
+            return .success(versionManifestEntry)
         } else {
-            throw CError.unknownError("\(versionString) is not a valid Minecraft version")
+            return .failure(CError.unknownError("\(versionString) is not a valid Minecraft version"))
         }
     }
 

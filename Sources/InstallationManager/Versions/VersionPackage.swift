@@ -14,7 +14,7 @@ import Common
  * like assets, libraries, and how to launch the game.
  */
 public struct VersionPackage: Decodable {
-    let id: String
+    public let id: String
     let complianceLevel: Int
     public let mainClass: String
     public let minimumLauncherVersion: UInt

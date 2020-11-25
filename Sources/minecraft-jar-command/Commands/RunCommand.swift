@@ -58,45 +58,48 @@ struct RunCommand: ParsableCommand {
         print("swift run minecraft-jar-command \(auth.accessToken) \(auth.clientToken)")
         print("\n\n")
         
-        // Get Version Manifest and Specific Entry
-        let versionManifest = try VersionManifest.downloadManifest()
-        let versionManifestEntry: VersionManifest.VersionMetadata
-        if let userRequestedVersion = version {
-            versionManifestEntry = try versionManifest.get(version: .custom(userRequestedVersion))
-        } else {
-            versionManifestEntry = try versionManifest.get(version: .release)
-        }
-        
-        // Next thing...
-        print("Downloading \(versionManifestEntry.id) package info")
-        let versionManifestData = try retrieveData(url: versionManifestEntry.url)
-        
-        let jsonDecoder = JSONDecoder()
-        jsonDecoder.keyDecodingStrategy = .convertFromSnakeCase
-        jsonDecoder.dateDecodingStrategy = .iso8601
-        
-        let versionInfo = try jsonDecoder.decode(VersionPackage.self, from: versionManifestData)
-        
-        guard versionInfo.minimumLauncherVersion >= 21 else {
-            print("Unfortunately, \(versionManifestEntry.id) isn't available from this utility")
-            print("This utility is only tested with the latest version, and does not work with versions prior to 1.13")
-            Main.exit()
-        }
-        
         let gameDirectory = self.gameDirectory != nil ? URL(fileURLWithPath: self.gameDirectory!) : nil
         
         let installationManager: InstallationManager
         if let workingDirectory = workingDirectory {
-            installationManager = try InstallationManager(requestedDirectory: URL(fileURLWithPath: workingDirectory), gameDirectory: gameDirectory, versionInfo: versionInfo)
+            installationManager = try InstallationManager(requestedDirectory: URL(fileURLWithPath: workingDirectory), gameDirectory: gameDirectory)
         } else {
-            installationManager = try InstallationManager(gameDirectory: gameDirectory, versionInfo: versionInfo)
+            installationManager = try InstallationManager(gameDirectory: gameDirectory)
+        }
+        
+        if let userRequestedVersion = version {
+            installationManager.use(version: userRequestedVersion)
+        } else {
+            installationManager.useLatest()
+        }
+
+        // MARK: Version Info
+        var versionInfoResult: Result<VersionPackage, CError> = .failure(.unknownError("Callback never completed"))
+        let group = DispatchGroup()
+        group.enter()
+        installationManager.downloadVersionInfo { result in
+            versionInfoResult = result
+            group.leave()
+        }
+        group.wait()
+        let versionInfo: VersionPackage
+        switch versionInfoResult {
+            case .success(let package):
+                versionInfo = package
+            case .failure(let error):
+                Main.exit(withError: error)
+        }
+        
+        guard versionInfo.minimumLauncherVersion >= 21 else {
+            print("Unfortunately, \(versionInfo.id) isn't available from this utility")
+            print("This utility is only tested with the latest version, and does not work with versions prior to 1.13")
+            Main.exit()
         }
         
         //        print("\n\nDownloading game files to: \(workingDirectory.path).\n\n>>>Press any key to continue")
         //        let _ = readLine()
         
         var clientJAR: URL! = nil
-        let group = DispatchGroup()
         group.enter()
         installationManager.downloadJar { result in
             switch result {
@@ -136,7 +139,7 @@ struct RunCommand: ParsableCommand {
         let librariesClassPath = libraries.map { $0.localURL.relativePath }.joined(separator: ":")
         let classPath = "\(librariesClassPath):\(clientJAR.relativePath)"
         
-        let argumentProcessor = ArgumentProcessor(versionName: versionManifestEntry.id,
+        let argumentProcessor = ArgumentProcessor(versionName: versionInfo.id,
                                                   assetsVersion: assetsVersion,
                                                   installationManager: installationManager,
                                                   classPath: classPath,

@@ -7,11 +7,10 @@
 
 import Foundation
 
-public func retrieveData(url: URL, callback: @escaping (Result<Data, Error>) -> Void) {
+public func retrieveData(url: URL, callback: @escaping (Result<Data, CError>) -> Void) {
     let task = URLSession.shared.dataTask(with: url) { (data, response, _error) in
         guard let data = data else {
-            let error = _error ?? CError.networkError("No data found and no error provided")
-            callback(.failure(error))
+            callback(.failure(.networkError(_error?.localizedDescription ?? "No data found and no error provided")))
             return
         }
 
@@ -21,7 +20,7 @@ public func retrieveData(url: URL, callback: @escaping (Result<Data, Error>) -> 
 }
 
 public func retrieveData(url: URL) throws -> Data {
-    var result: Result<Data, Error> = .failure(CError.unknownError("Missing Result Object"))
+    var result: Result<Data, CError> = .failure(CError.unknownError("Missing Result Object"))
 
     let group = DispatchGroup()
     group.enter()
