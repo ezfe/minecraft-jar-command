@@ -13,20 +13,19 @@ import MojangRules
 struct ArgumentProcessor {
     private let replacementParameters: [String: String]
 
-    init(versionName: String,
-         assetsVersion: String,
+    init(versionInfo: VersionPackage,
          installationManager: InstallationManager,
          classPath: String,
          authResults: AuthResult) {
 
         self.replacementParameters = [
             "auth_player_name": authResults.profile.name,
-            "version_name": versionName,
+            "version_name": versionInfo.id,
             "game_directory": installationManager.gameDirectory.path,
             "natives_directory": installationManager.nativesDirectory.relativePath,
             "classpath": classPath,
             "assets_root": installationManager.assetsDirectory.relativePath,
-            "assets_index_name": assetsVersion,
+            "assets_index_name": versionInfo.assets,
             "auth_uuid": authResults.profile.id,
             "auth_access_token": authResults.accessToken,
             "user_type": "usertype",

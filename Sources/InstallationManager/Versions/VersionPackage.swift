@@ -24,7 +24,7 @@ public struct VersionPackage: Decodable {
 
     public let arguments: Arguments
     let assetIndex: AssetIndex
-    let assets: String
+    public let assets: String
     let downloads: Downloads
     let libraries: [Library]
     let logging: Logging

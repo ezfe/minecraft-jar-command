@@ -239,3 +239,72 @@ extension InstallationManager {
         }
     }
 }
+
+// MARK:- Asset Management
+
+extension InstallationManager {
+    public func downloadAssets(callback: @escaping (Result<Void, CError>) -> Void) {
+        guard let version = self.version else {
+            callback(.failure(CError.stateError("\(#function) must not be called before `version` is set")))
+            return
+        }
+        
+        let assetIndex = version.assetIndex
+        guard let assetIndexURL = URL(string: assetIndex.url) else {
+            callback(.failure(.decodingError("Failed to retrieve asset index URL")))
+            return
+        }
+
+        retrieveData(url: assetIndexURL) { indexDataResult in
+            switch indexDataResult {
+                case .success(let indexData):
+                    let indexJSONFileURL = self.assetsIndexesDirectory.appendingPathComponent("\(assetIndex.id).json")
+                    do {
+                        try indexData.write(to: indexJSONFileURL)
+                    } catch let error {
+                        callback(.failure(.filesystemError(error.localizedDescription)))
+                        return
+                    }
+                    
+                    let index: AssetsIndex
+                    do {
+                        let decoder = JSONDecoder()
+                        index = try decoder.decode(AssetsIndex.self, from: indexData)
+                    } catch let error {
+                        callback(.failure(.decodingError(error.localizedDescription)))
+                        return
+                    }
+                    
+                    let downloadRequests: [DownloadManager.DownloadRequest]
+                    do {
+                        downloadRequests = try index.objects.map { (name, metadata) -> DownloadManager.DownloadRequest in
+                            let res = buildAssetRequest(name: name, hash: metadata.hash, size: metadata.size, installationManager: self)
+                            switch res {
+                            case .success(let request):
+                                return request
+                            case .failure(let error):
+                                throw error
+                            }
+                        }
+                    } catch let error {
+                        if let error = error as? CError {
+                            callback(.failure(error))
+                        } else {
+                            callback(.failure(.unknownError(error.localizedDescription)))
+                        }
+                        return
+                    }
+                    
+                    DownloadManager.shared.download(downloadRequests, named: "Asset Collection") { progress in
+                        print("AssetCollection% \(progress)")
+                    } callback: { result in
+                        callback(.success((/* void */)))
+                    }
+
+                case .failure(let error):
+                    callback(.failure(error))
+                    return
+            }
+        }
+    }
+}

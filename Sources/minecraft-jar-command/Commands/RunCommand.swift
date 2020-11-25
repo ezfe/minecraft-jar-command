@@ -105,14 +105,23 @@ struct RunCommand: ParsableCommand {
             switch result {
                 case .success(let jar):
                     clientJAR = jar
-                    group.leave()
                 case .failure(let error):
                     Main.exit(withError: error)
             }
+            group.leave()
         }
-        group.wait()
         
-        let assetsVersion = try downloadAssets(versionInfo: versionInfo, installationManager: installationManager)
+        group.enter()
+        installationManager.downloadAssets { result in
+            switch result {
+                case .success(_):
+                    break
+                case .failure(let error):
+                    Main.exit(withError: error)
+                    
+            }
+            group.leave()
+        }
         
         var libraries: [LibraryMetadata]! = nil
         group.enter()
@@ -120,11 +129,13 @@ struct RunCommand: ParsableCommand {
             switch result {
                 case .success(let metadata):
                     libraries = metadata
-                    group.leave()
                 case .failure(let error):
                     Main.exit(withError: error)
             }
+            group.leave()
         }
+        
+        print("Queued up downloads")
         group.wait()
         
         if FileManager.default.fileExists(atPath: installationManager.nativesDirectory.path) {
@@ -139,8 +150,7 @@ struct RunCommand: ParsableCommand {
         let librariesClassPath = libraries.map { $0.localURL.relativePath }.joined(separator: ":")
         let classPath = "\(librariesClassPath):\(clientJAR.relativePath)"
         
-        let argumentProcessor = ArgumentProcessor(versionName: versionInfo.id,
-                                                  assetsVersion: assetsVersion,
+        let argumentProcessor = ArgumentProcessor(versionInfo: versionInfo,
                                                   installationManager: installationManager,
                                                   classPath: classPath,
                                                   authResults: auth)
