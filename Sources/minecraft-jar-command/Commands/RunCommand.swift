@@ -138,14 +138,7 @@ struct RunCommand: ParsableCommand {
         print("Queued up downloads")
         group.wait()
         
-        if FileManager.default.fileExists(atPath: installationManager.nativesDirectory.path) {
-            try FileManager.default.removeItem(at: installationManager.nativesDirectory)
-            try FileManager.default.createDirectory(at: installationManager.nativesDirectory, withIntermediateDirectories: true)
-        }
-        try libraries.filter { $0.isNative }.forEach { libMetadata in
-            let target = installationManager.nativesDirectory.appendingPathComponent(libMetadata.localURL.lastPathComponent)
-            try FileManager.default.copyItem(at: libMetadata.localURL, to: target)
-        }
+        try installationManager.copyNatives()
         
         let librariesClassPath = libraries.map { $0.localURL.relativePath }.joined(separator: ":")
         let classPath = "\(librariesClassPath):\(clientJAR.relativePath)"

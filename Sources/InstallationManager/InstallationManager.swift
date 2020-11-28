@@ -27,6 +27,7 @@ public class InstallationManager {
     public private(set) var manifest: VersionManifest? = nil
     public private(set) var version: VersionPackage? = nil
     public private(set) var jar: URL? = nil
+    public private(set) var libraryMetadata: [LibraryMetadata] = []
     
     public convenience init(requestedDirectory: URL, gameDirectory: URL? = nil) throws {
         try self.init(baseDirectory: requestedDirectory, gameDirectory: gameDirectory)
@@ -49,7 +50,9 @@ public class InstallationManager {
         self.assetsObjectsDirectory = self.assetsDirectory.appendingPathComponent("objects", isDirectory: true)
         self.assetsIndexesDirectory = self.assetsDirectory.appendingPathComponent("indexes", isDirectory: true)
         self.gameDirectory = gameDirectory ?? absoluteBase
-                
+        
+        print(self.baseDirectory)
+        
         try createDirectories()
     }
     
@@ -210,32 +213,56 @@ extension InstallationManager {
         return [libmetadata, nativemetadata].compactMap { $0 }
     }
     
-    public func downloadLibraries(callback: @escaping (Result<[LibraryMetadata], CError>) -> Void) {
+    func createLibraryMetadata() -> Result<[LibraryMetadata], CError> {
         guard let version = self.version else {
-            callback(.failure(CError.stateError("\(#function) must not be called before `version` is set")))
-            return
+            return .failure(CError.stateError("\(#function) must not be called before `version` is set"))
         }
 
-        let libraryMetadata: FlattenSequence<[[LibraryMetadata]]>
         do {
-            libraryMetadata = try version.libraries.compactMap {
+            let libraryMetadata = try version.libraries.compactMap {
                 try downloadLibrary(libraryInfo: $0)
             }.joined()
+            let arr = Array(libraryMetadata)
+            self.libraryMetadata = arr
+            return .success(arr)
         } catch let error {
             if let error = error as? CError {
-                callback(.failure(error))
+                return .failure(error)
             } else {
-                callback(.failure(.unknownError(error.localizedDescription)))
+                return .failure(.unknownError(error.localizedDescription))
             }
-            return
         }
+    }
+    
+    public func downloadLibraries(callback: @escaping (Result<[LibraryMetadata], CError>) -> Void) {
+        let libraryMetadataResult = createLibraryMetadata()
+        switch libraryMetadataResult {
+            case .success(let libraryMetadata):
+                let requests = libraryMetadata.map { $0.downloadRequest }
+                DownloadManager.shared.download(requests, named: "Libraries") { progress in
+                    print("Library%: \(progress)")
+                } callback: { result in
+                    // Map will transform the success case, leave the error case
+                    callback(result.map { libraryMetadata })
+                }
+            case .failure(let error):
+                callback(.failure(error))
+                
+        }
+    }
+}
 
-        let requests = libraryMetadata.map { $0.downloadRequest }
-        DownloadManager.shared.download(requests, named: "Libraries") { progress in
-            print("Library%: \(progress)")
-        } callback: { result in
-            // Map will transform the success case, leave the error case
-            callback(result.map { Array(libraryMetadata) })
+// MARK: Native Management
+
+extension InstallationManager {
+    public func copyNatives() throws {
+        if FileManager.default.fileExists(atPath: self.nativesDirectory.path) {
+            try FileManager.default.removeItem(at: self.nativesDirectory)
+            try FileManager.default.createDirectory(at: self.nativesDirectory, withIntermediateDirectories: true)
+        }
+        try self.libraryMetadata.filter { $0.isNative }.forEach { libMetadata in
+            let target = self.nativesDirectory.appendingPathComponent(libMetadata.localURL.lastPathComponent)
+            try FileManager.default.copyItem(at: libMetadata.localURL, to: target)
         }
     }
 }
