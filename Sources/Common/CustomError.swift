@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  CustomError.swift
 //  
 //
 //  Created by Ezekiel Elin on 11/21/20.
@@ -15,9 +15,32 @@ public enum CError: Error {
     case filesystemError(String)
     case stateError(String)
     case unknownError(String)
+    
+    public var errorText: String {
+        switch self {
+            case .mojangErorr(let e):
+                return e.description
+            case .decodingError(let s):
+                return "Decoding Error: \(s)"
+            case .encodingError(let s):
+                return "Encoding Error: \(s)"
+            case .networkError(let s):
+                return "Network Error: \(s)"
+            case .filesystemError(let s):
+                return "Filesystem Error: \(s)"
+            case .stateError(let s):
+                return "State Error: \(s)"
+            case .unknownError(let s):
+                return "Unknown Error: \(s)"
+        }
+    }
 }
 
-public struct YggdrasilError: Decodable {
+public struct YggdrasilError: Decodable, CustomStringConvertible {
     let error: String
     let errorMessage: String
+    
+    public var description: String {
+        return "\(error): \(errorMessage)"
+    }
 }
