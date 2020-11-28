@@ -270,7 +270,9 @@ extension InstallationManager {
 // MARK:- Asset Management
 
 extension InstallationManager {
-    public func downloadAssets(callback: @escaping (Result<Void, CError>) -> Void) {
+    public func downloadAssets(progress: @escaping (Double) -> Void = { _ in },
+                               callback: @escaping (Result<Void, CError>) -> Void) {
+
         guard let version = self.version else {
             callback(.failure(CError.stateError("\(#function) must not be called before `version` is set")))
             return
@@ -322,11 +324,10 @@ extension InstallationManager {
                         return
                     }
                     
-                    DownloadManager.shared.download(downloadRequests, named: "Asset Collection") { progress in
-                        print("AssetCollection% \(progress)")
-                    } callback: { result in
-                        callback(.success((/* void */)))
-                    }
+                    DownloadManager.shared.download(downloadRequests,
+                                                    named: "Asset Collection",
+                                                    progress: progress,
+                                                    callback: callback)
 
                 case .failure(let error):
                     callback(.failure(error))
