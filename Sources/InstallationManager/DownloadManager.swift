@@ -28,8 +28,11 @@ struct DownloadManager {
             
             var foundError: CError? = nil
             
+            let group = DispatchGroup()
             for request in batch {
+                group.enter()
                 self.download(request) { result in
+                    group.leave()
                     switch result {
                         case .success(_):
                             break
@@ -45,6 +48,7 @@ struct DownloadManager {
                 }
             }
 
+            group.wait()
             if let error = foundError {
                 callback(.failure(error))
             } else {
