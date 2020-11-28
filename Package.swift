@@ -13,7 +13,8 @@ let package = Package(
             name: "minecraft-jar-command",
             targets: ["minecraft-jar-command"]
         ),
-        .library(name: "MojangAuthentication", targets: ["MojangAuthentication"])
+        .library(name: "MojangAuthentication", targets: ["MojangAuthentication"]),
+        .library(name: "InstallationManager", targets: ["InstallationManager"])
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
