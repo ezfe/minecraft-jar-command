@@ -22,10 +22,6 @@ struct DownloadManager {
         DispatchQueue.global(qos: .utility).async {
             print("==== Starting Download Batch : \(batchName) ====")
             
-            // Remove duplicates by sha1
-            let sha1Dictionary = Dictionary(grouping: batch) { $0.sha1 }
-            let uniqued = sha1Dictionary.values.compactMap { $0.first }
-            
             let reportingQueue = DispatchQueue(label: "reporting-queue")
             let totalSize = batch.map { $0.size }.reduce(0, +)
             var currentTotal: UInt = 0
@@ -33,10 +29,9 @@ struct DownloadManager {
             var foundError: CError? = nil
             
             let group = DispatchGroup()
-            for request in uniqued {
+            for request in batch {
                 group.enter()
                 self.download(request) { result in
-                    group.leave()
                     switch result {
                         case .success(_):
                             break
@@ -49,10 +44,11 @@ struct DownloadManager {
                         currentTotal += request.size
                         progress(Double(currentTotal) / Double(totalSize))
                     }
+                    group.leave()
                 }
+                group.wait()
             }
 
-            group.wait()
             if let error = foundError {
                 callback(.failure(error))
             } else {
@@ -61,7 +57,7 @@ struct DownloadManager {
         }
     }
 
-    func verifySha1orDelete(url: URL, sha1: String?, fm: FileManager) throws -> Bool {
+    func verifySha1(url: URL, sha1: String?, fm: FileManager) -> Bool {
         if fm.fileExists(atPath: url.path) {
             if let fileData = fm.contents(atPath: url.path) {
                 let foundSha1 = Insecure.SHA1.hash(data: fileData).compactMap { String(format: "%02x", $0) }.joined()
@@ -69,7 +65,6 @@ struct DownloadManager {
                     return true
                 }
             }
-            try fm.removeItem(at: url)
         }
         return false
     }
@@ -78,11 +73,16 @@ struct DownloadManager {
         let fm = FileManager.default
 
         do {
-            if try verifySha1orDelete(url: request.destinationURL, sha1: request.sha1, fm: fm) {
+            if verifySha1(url: request.destinationURL, sha1: request.sha1, fm: fm) {
                 callback(.success((/* void */)))
             } else {
-                try fm.createDirectory(at: request.destinationURL.deletingLastPathComponent(),
-                                       withIntermediateDirectories: true)
+                if fm.fileExists(atPath: request.destinationURL.path) {
+                    try fm.removeItem(at: request.destinationURL)
+                } else {
+                    try fm.createDirectory(at: request.destinationURL.deletingLastPathComponent(),
+                                           withIntermediateDirectories: true)
+                }
+                callback(.success((/* void */)))
             }
         } catch let err {
             callback(.failure(CError.filesystemError(err.localizedDescription)))
@@ -96,6 +96,9 @@ struct DownloadManager {
             }
 
             do {
+                if fm.fileExists(atPath: request.destinationURL.path) {
+                    try fm.removeItem(at: request.destinationURL)
+                }
                 try fm.moveItem(at: temporaryURL, to: request.destinationURL)
             } catch let err {
                 callback(.failure(.filesystemError(err.localizedDescription)))
