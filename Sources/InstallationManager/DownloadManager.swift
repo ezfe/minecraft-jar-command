@@ -46,8 +46,8 @@ struct DownloadManager {
                     }
                     group.leave()
                 }
-                group.wait()
             }
+            group.wait()
 
             if let error = foundError {
                 callback(.failure(error))
@@ -75,14 +75,14 @@ struct DownloadManager {
         do {
             if verifySha1(url: request.destinationURL, sha1: request.sha1, fm: fm) {
                 callback(.success((/* void */)))
+                return
             } else {
                 if fm.fileExists(atPath: request.destinationURL.path) {
                     try fm.removeItem(at: request.destinationURL)
-                } else {
-                    try fm.createDirectory(at: request.destinationURL.deletingLastPathComponent(),
-                                           withIntermediateDirectories: true)
                 }
-                callback(.success((/* void */)))
+                try fm.createDirectory(at: request.destinationURL.deletingLastPathComponent(),
+                                       withIntermediateDirectories: true)
+                // continuing on to download file
             }
         } catch let err {
             callback(.failure(CError.filesystemError(err.localizedDescription)))
@@ -106,6 +106,7 @@ struct DownloadManager {
             }
             
             callback(.success((/* void */)))
+            return
         }
         task.resume()
     }

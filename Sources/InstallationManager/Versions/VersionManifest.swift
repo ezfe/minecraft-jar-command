@@ -82,12 +82,12 @@ public extension VersionManifest {
     func get(version: VersionType) -> Result<VersionManifest.VersionMetadata, CError> {
         let versionString: String
         switch version {
-        case .release:
-            versionString = self.latest.release
-        case .snapshot:
-            versionString = self.latest.snapshot
-        case .custom(let customString):
-            versionString = customString
+            case .release:
+                versionString = self.latest.release
+            case .snapshot:
+                versionString = self.latest.snapshot
+            case .custom(let customString):
+                versionString = customString
         }
         
         let versionManifestEntry = self.versions.first(where: { (versionEntry) in
@@ -97,7 +97,7 @@ public extension VersionManifest {
         if let versionManifestEntry = versionManifestEntry {
             return .success(versionManifestEntry)
         } else {
-            return .failure(CError.unknownError("\(versionString) is not a valid Minecraft version"))
+            return .failure(CError.unknownVersion(versionString))
         }
     }
 

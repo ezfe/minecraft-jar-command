@@ -28,6 +28,19 @@ public struct VersionPackage: Decodable {
     let downloads: Downloads
     let libraries: [Library]
     let logging: Logging
+    
+    static func decode(from data: Data) -> Result<VersionPackage, CError> {
+        let jsonDecoder = JSONDecoder()
+        jsonDecoder.keyDecodingStrategy = .convertFromSnakeCase
+        jsonDecoder.dateDecodingStrategy = .iso8601
+
+        do {
+            let versionInfo = try jsonDecoder.decode(VersionPackage.self, from: data)
+            return .success(versionInfo)
+        } catch let error {
+            return .failure(.decodingError(error.localizedDescription))
+        }
+    }
 }
 
 // MARK:- Arguments

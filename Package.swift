@@ -30,7 +30,8 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .target(name: "MojangAuthentication"),
                 .target(name: "InstallationManager")
-            ]),
+            ]
+        ),
         .target(
             name: "InstallationManager",
             dependencies: [

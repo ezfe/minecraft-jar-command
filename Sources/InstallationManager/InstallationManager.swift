@@ -69,6 +69,10 @@ public class InstallationManager {
 
 // MARK:- Version Management
 extension InstallationManager {
+    func destinationDirectory(for version: String) -> URL {
+        return URL(fileURLWithPath: "versions/\(version)", relativeTo: self.baseDirectory)
+    }
+    
     func getManifest(callback: @escaping (Result<VersionManifest, CError>) -> Void) {
         if let manifest = self.manifest {
             callback(.success(manifest))
@@ -86,6 +90,52 @@ extension InstallationManager {
     }
     
     public func downloadVersionInfo(callback: @escaping (Result<VersionPackage, CError>) -> Void) {
+        let fm = FileManager.default
+
+        // Check if the file exists on the local file system, and if it does
+        // try to decode it as a version package. Lastly, verify that the
+        // version package matches the requested version.
+        switch versionRequested {
+            case .custom(let versionString):
+                let targetFileLocation = self.destinationDirectory(for: versionString).appendingPathComponent("\(versionString).json")
+                
+                do {
+                    try fm.createDirectory(at: targetFileLocation.deletingLastPathComponent(),
+                                           withIntermediateDirectories: true)
+                } catch let err {
+                    callback(.failure(.filesystemError(err.localizedDescription)))
+                    return
+                }
+                if fm.fileExists(atPath: targetFileLocation.path) {
+                    if let versionData = fm.contents(atPath: targetFileLocation.path) {
+                        let result = VersionPackage.decode(from: versionData)
+                        switch result {
+                            case .success(let versionPackage):
+                                if versionPackage.id == versionString {
+                                    self.version = versionPackage
+                                    callback(.success(versionPackage))
+                                    return
+                                } else {
+                                    // else continue on as if the versionData didn't
+                                    // decode properly
+                                }
+                            default:
+                                break
+                        }
+                    }
+                    do {
+                        try fm.removeItem(at: targetFileLocation)
+                    } catch let err {
+                        callback(.failure(.filesystemError(err.localizedDescription)))
+                        return
+                    }
+                }
+            default:
+                break
+        }
+
+        // If we haven't aborted at this point, then no file already exists, or one
+        // did and has been removed in the meantime.
         self.getManifest { manifestResult in
             switch manifestResult {
                 case .success(let manifest):
@@ -96,26 +146,32 @@ extension InstallationManager {
                             retrieveData(url: entry.url) { versionDataResult in
                                 switch versionDataResult {
                                     case .success(let versionData):
-                                        let jsonDecoder = JSONDecoder()
-                                        jsonDecoder.keyDecodingStrategy = .convertFromSnakeCase
-                                        jsonDecoder.dateDecodingStrategy = .iso8601
-
-                                        do {
-                                            let versionInfo = try jsonDecoder.decode(VersionPackage.self, from: versionData)
-                                            self.version = versionInfo
-                                            callback(.success(versionInfo))
-                                        } catch let error {
-                                            callback(.failure(.decodingError(error.localizedDescription)))
+                                        let packageResult = VersionPackage.decode(from: versionData)
+                                        switch packageResult {
+                                            case .success(let package):
+                                                let targetFileLocation = self.destinationDirectory(for: package.id).appendingPathComponent("\(package.id).json")
+                                                fm.createFile(atPath: targetFileLocation.path,
+                                                              contents: versionData)
+                                                
+                                                self.version = package
+                                                callback(VersionPackage.decode(from: versionData))
+                                                return
+                                            case .failure(let error):
+                                                callback(.failure(error))
+                                                return
                                         }
                                     case .failure(let error):
                                         callback(.failure(error))
+                                        return
                                 }
                             }
                         case .failure(let error):
                             callback(.failure(error))
+                            return
                     }
                 case .failure(let error):
                     callback(.failure(error))
+                    return
             }
         }
     }
@@ -130,7 +186,7 @@ extension InstallationManager {
             return
         }
         
-        let destinationURL = URL(fileURLWithPath: "versions/\(version.id)/\(version.id).jar", relativeTo: self.baseDirectory)
+        let destinationURL = self.destinationDirectory(for: version.id).appendingPathComponent("\(version.id).jar")
         
         guard let remoteURL = URL(string: version.downloads.client.url) else {
             callback(.failure(CError.decodingError("Failed to parse out client JAR download URL")))

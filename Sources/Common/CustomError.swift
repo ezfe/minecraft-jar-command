@@ -14,6 +14,7 @@ public enum CError: Error {
     case decodingError(String)
     case filesystemError(String)
     case stateError(String)
+    case unknownVersion(String)
     case unknownError(String)
     
     public var errorText: String {
@@ -30,6 +31,8 @@ public enum CError: Error {
                 return "Filesystem Error: \(s)"
             case .stateError(let s):
                 return "State Error: \(s)"
+            case .unknownVersion(let version):
+                return "\(version) is not a valid Minecraft version"
             case .unknownError(let s):
                 return "Unknown Error: \(s)"
         }
