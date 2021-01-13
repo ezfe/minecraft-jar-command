@@ -123,12 +123,6 @@ extension InstallationManager {
                                 break
                         }
                     }
-                    do {
-                        try fm.removeItem(at: targetFileLocation)
-                    } catch let err {
-                        callback(.failure(.filesystemError(err.localizedDescription)))
-                        return
-                    }
                 }
             default:
                 break
@@ -150,6 +144,16 @@ extension InstallationManager {
                                         switch packageResult {
                                             case .success(let package):
                                                 let targetFileLocation = self.destinationDirectory(for: package.id).appendingPathComponent("\(package.id).json")
+
+                                                do {
+                                                    if fm.fileExists(atPath: targetFileLocation.path) {
+                                                        try fm.removeItem(at: targetFileLocation)
+                                                    }
+                                                } catch let err {
+                                                    callback(.failure(.filesystemError(err.localizedDescription)))
+                                                    return
+                                                }
+
                                                 fm.createFile(atPath: targetFileLocation.path,
                                                               contents: versionData)
                                                 
