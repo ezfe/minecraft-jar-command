@@ -7,7 +7,6 @@
 
 import Foundation
 import MojangAuthentication
-import InstallationManager
 import MojangRules
 
 struct ArgumentProcessor {
@@ -17,7 +16,7 @@ struct ArgumentProcessor {
          installationManager: InstallationManager,
          classPath: String,
          authResults: AuthResult) {
-
+        
         self.replacementParameters = [
             "auth_player_name": authResults.profile.name,
             "version_name": versionInfo.id,

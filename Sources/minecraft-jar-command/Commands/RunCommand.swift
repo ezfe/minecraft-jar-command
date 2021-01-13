@@ -55,7 +55,7 @@ struct RunCommand: ParsableCommand {
 //        let auth = try AuthenticationManager.refresh(accessToken: accessToken, clientToken: clientToken)
         let auth = AuthResult(accessToken: accessToken, clientToken: clientToken, profile: Profile(name: "ezfe", id: "id123"))
         print("\n\n")
-        print("swift run minecraft-jar-command \(auth.accessToken) \(auth.clientToken)")
+        print("./minecraft-jar-command \(auth.accessToken) \(auth.clientToken)")
         print("\n\n")
         
         let gameDirectory = self.gameDirectory != nil ? URL(fileURLWithPath: self.gameDirectory!) : nil
@@ -96,17 +96,13 @@ struct RunCommand: ParsableCommand {
             Main.exit()
         }
         
-        //        print("\n\nDownloading game files to: \(workingDirectory.path).\n\n>>>Press any key to continue")
-        //        let _ = readLine()
-        
-        var clientJAR: URL! = nil
         group.enter()
         installationManager.downloadJar { result in
             switch result {
-                case .success(let jar):
-                    clientJAR = jar
                 case .failure(let error):
                     Main.exit(withError: error)
+                default:
+                    break
             }
             group.leave()
         }
@@ -114,23 +110,21 @@ struct RunCommand: ParsableCommand {
         group.enter()
         installationManager.downloadAssets { result in
             switch result {
-                case .success(_):
-                    break
                 case .failure(let error):
                     Main.exit(withError: error)
-                    
+                default:
+                    break                    
             }
             group.leave()
         }
         
-        var libraries: [LibraryMetadata]! = nil
         group.enter()
         installationManager.downloadLibraries { result in
             switch result {
-                case .success(let metadata):
-                    libraries = metadata
                 case .failure(let error):
                     Main.exit(withError: error)
+                default:
+                    break
             }
             group.leave()
         }
@@ -139,36 +133,25 @@ struct RunCommand: ParsableCommand {
         group.wait()
         
         try installationManager.copyNatives()
+                
+        let launchArgumentsResults = installationManager.launchArguments(with: auth)
+        switch launchArgumentsResults {
+            case .success(let args):
+                let proc = Process()
+                proc.executableURL = URL(fileURLWithPath: "/usr/bin/java")
+                proc.arguments = args
+                proc.currentDirectoryURL = installationManager.baseDirectory
+                
+                let pipe = Pipe()
+                proc.standardOutput = pipe
+                
+                print("Starting game...")
+                proc.launch()
+                
+                proc.waitUntilExit()
+            case .failure(let error):
+                Main.exit(withError: error)
+        }
         
-        let librariesClassPath = libraries.map { $0.localURL.relativePath }.joined(separator: ":")
-        let classPath = "\(librariesClassPath):\(clientJAR.relativePath)"
-        
-        let argumentProcessor = ArgumentProcessor(versionInfo: versionInfo,
-                                                  installationManager: installationManager,
-                                                  classPath: classPath,
-                                                  authResults: auth)
-        
-        let jvmArgsStr = argumentProcessor.jvmArguments(versionInfo: versionInfo)
-        let gameArgsString = argumentProcessor.gameArguments(versionInfo: versionInfo)
-        
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/bin/java")
-        proc.arguments = [
-            "-Xms1024M",
-            "-Xmx1024M",
-        ]
-        proc.arguments?.append(contentsOf: jvmArgsStr)
-        proc.arguments?.append(versionInfo.mainClass)
-        proc.arguments?.append(contentsOf: gameArgsString)
-        
-        proc.currentDirectoryURL = installationManager.baseDirectory
-        
-        let pipe = Pipe()
-        proc.standardOutput = pipe
-        
-        print("Starting game...")
-        proc.launch()
-        
-        proc.waitUntilExit()
     }
 }

@@ -8,6 +8,7 @@
 import Foundation
 import Common
 import MojangRules
+import MojangAuthentication
 
 public class InstallationManager {
     // MARK: Directories
@@ -394,5 +395,32 @@ extension InstallationManager {
                     return
             }
         }
+    }
+}
+
+// MARK:- Command Compilation
+extension InstallationManager {
+    public func launchArguments(with auth: AuthResult) -> Result<[String], CError> {
+        guard let clientJAR = self.jar else {
+            return .failure(CError.stateError("\(#function) must not be called before `jar` is set"))
+        }
+        
+        guard let version = self.version else {
+            return .failure(CError.stateError("\(#function) must not be called before `version` is set"))
+        }
+
+        let librariesClassPath = self.libraryMetadata.map { $0.localURL.relativePath }.joined(separator: ":")
+        let classPath = "\(librariesClassPath):\(clientJAR.relativePath)"
+
+        let argumentProcessor = ArgumentProcessor(versionInfo: version,
+                                                  installationManager: self,
+                                                  classPath: classPath,
+                                                  authResults: auth)
+        
+        let jvmArgsStr = argumentProcessor.jvmArguments(versionInfo: version)
+        let gameArgsString = argumentProcessor.gameArguments(versionInfo: version)
+
+        let args = ["-Xms1024M", "-Xmx1024M"] + jvmArgsStr + [version.mainClass] + gameArgsString
+        return .success(args)
     }
 }
