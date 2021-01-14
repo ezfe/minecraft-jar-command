@@ -295,15 +295,13 @@ extension InstallationManager {
         }
     }
     
-    public func downloadLibraries(callback: @escaping (Result<[LibraryMetadata], CError>) -> Void) {
+    public func downloadLibraries(progress: @escaping (Double) -> Void = { _ in },
+                                  callback: @escaping (Result<[LibraryMetadata], CError>) -> Void) {
         let libraryMetadataResult = createLibraryMetadata()
         switch libraryMetadataResult {
             case .success(let libraryMetadata):
                 let requests = libraryMetadata.map { $0.downloadRequest }
-                DownloadManager.shared.download(requests, named: "Libraries") { progress in
-                    print("Library%: \(progress)")
-                } callback: { result in
-                    // Map will transform the success case, leave the error case
+                DownloadManager.shared.download(requests, named: "Libraries", progress: progress) { result in
                     callback(result.map { libraryMetadata })
                 }
             case .failure(let error):
