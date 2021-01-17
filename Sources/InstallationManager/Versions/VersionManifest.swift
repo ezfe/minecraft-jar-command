@@ -29,7 +29,8 @@ public struct VersionManifest: Decodable {
 // MARK: Download Manifest
 
 public extension VersionManifest {
-    static let url = URL(string: "https://launchermeta.mojang.com/mc/game/version_manifest.json")!
+//    static let url = URL(string: "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")!
+    static let url = URL(string: "https://f001.backblazeb2.com/file/com-ezekielelin-publicFiles/lwjgl-arm/version_manifest_v2.json")!
     
     static func downloadManifest(callback: @escaping (Result<VersionManifest, CError>) -> Void) {
         retrieveData(url: url, callback: { (result) in
