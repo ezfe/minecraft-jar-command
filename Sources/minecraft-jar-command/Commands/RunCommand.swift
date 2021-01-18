@@ -66,6 +66,10 @@ struct RunCommand: ParsableCommand {
         }
         
         let auth = try AuthenticationManager.refresh(accessToken: accessToken, clientToken: clientToken)
+        
+        defaults.set(auth.clientToken, forKey: "clientToken")
+        defaults.set(auth.accessToken, forKey: "accessToken")
+        
         print("\n\n")
         print("./minecraft-jar-command \(auth.accessToken) \(auth.clientToken)")
         print("\n\n")
