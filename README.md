@@ -21,9 +21,15 @@ This package does not have a visual interface and must be run from the command l
 Tips:
 1. You can change the game version - the latest release version will be used by default. Only `1.16.4-arm64`, `1.16.5-arm64`, and `20w51a-arm64` are currently available
    ```
-   minecraft-jar-command run --version "20w51a"
+   minecraft-jar-command run --version "20w51a-arm64"
    ```
 2. You can change the game directory and working directory (where the supporting assets are downloaded). Right now, the game directory is set to the default Minecraft directory, and the working directory defaults to a temporary one to prevent interference with the default Minecraft launcher. Refer to `minecraft-jar-command help run` to see these commands.
+
+## Updates
+
+I will do my best to release new Minecraft versions quickly - this will happen automatically, no need to do anything to fetch it.
+
+To receive updates about this script and new versions, click "Watch > Custom > Releases" to get notifications.
 
 ## Java
 
