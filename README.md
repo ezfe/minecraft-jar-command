@@ -33,7 +33,7 @@ To receive updates about this script and new versions, click "Watch > Custom > R
 
 ## Java
 
-You will need to download and install Java 8 for ARM first – You can find the most recent version here:
+You will need to download and install Java for ARM first – You can find the most recent version here:
 
 https://www.azul.com/downloads/zulu-community/?version=java-8-lts&os=macos&architecture=arm-64-bit&package=jdk
 
@@ -43,4 +43,9 @@ To install, copy the folder `zulu-8.jdk` to `/Library/Java/JavaVirtualMachines`.
 openjdk version "1.8.0_275"
 OpenJDK Runtime Environment (Zulu 8.50.0.1013-CA-macos-aarch64) (build 1.8.0_275-b01)
 OpenJDK 64-Bit Server VM (Zulu 8.50.0.1013-CA-macos-aarch64) (build 25.275-b01, mixed mode)
+```
+
+If you have Homebrew running natively, you can install it with the following command:
+```sh
+brew install --cask zulu8
 ```
