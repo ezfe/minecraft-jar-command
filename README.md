@@ -19,9 +19,9 @@ This package does not have a visual interface and must be run from the command l
    - Your password will not be saved, only your access token - this is how the regular Minecraft launcher logs you in as well
    
 Tips:
-1. You can change the game version - the latest release version will be used by default. Only `1.16.4-arm64`, `1.16.5-arm64`, and `20w51a-arm64` are currently available
+1. You can change the game version - the latest release version will be used by default. Only some versions are available, you can view the complete list [here](https://f001.backblazeb2.com/file/com-ezekielelin-publicFiles/lwjgl-arm/version_manifest_v2.json).
    ```
-   minecraft-jar-command run --version "20w51a-arm64"
+   minecraft-jar-command run --version "21w05b-arm64"
    ```
 2. You can change the game directory and working directory (where the supporting assets are downloaded). Right now, the game directory is set to the default Minecraft directory, and the working directory defaults to a temporary one to prevent interference with the default Minecraft launcher. Refer to `minecraft-jar-command help run` to see these commands.
 
