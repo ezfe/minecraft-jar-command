@@ -23,7 +23,7 @@ Tips:
    ```
    minecraft-jar-command run --version "21w05b-arm64"
    ```
-2. You can change the game directory and working directory (where the supporting assets are downloaded). Right now, the game directory and the working directory defaults to a temporary one to prevent interference with the default Minecraft launcher. It's recommended to change the *game directory* if you want to play your regular worlds – don't change the working directory unless you know what you're doing, since there might be unintended side effects. Refer to `minecraft-jar-command help run` to see these commands.
+2. You can change the game directory and working directory (where the supporting assets are downloaded). Right now, the game directory is set to the default Minecraft directory, and the working directory defaults to a temporary one to prevent interference with the default Minecraft launcher. Refer to `minecraft-jar-command help run` to see these commands.
 
 ## Updates
 
