@@ -6,13 +6,11 @@ Download and run Minecraft without the Launcher.
 
 This package does not have a visual interface and must be run from the command line. In the future I plan on releasing a version with an interface, however there are technical challenges with this that are not worth the complexity at this time.
 
-1. Download and unarchive the latest release
-2. Copy the file to a location in your PATH
-   - Recommended location is `/usr/local/bin`, but pick whatever you'd like if you want to run from a different location
-3. Run `minecraft-jar-command` to launch the game!
+1. Install [Homebrew](https://brew.sh) and run `brew install ezfe/tap/minecraft-jar-command`
+2. Run `minecraft-jar-command` to launch the game!
    - You may get an error saying it can't be checked for malicious software – this is okay, click OK and open System Preferences > Security & Privacy and click "Allow Anyways"
    - Try again after allowing it
-4. You will probably need to login first – to do this, run the `login` command:
+3. You will probably need to login first – to do this, run the `login` command:
    ```
    minecraft-jar-command login <your email> <minecraft password> --save-credentials
    ```
@@ -23,7 +21,11 @@ Tips:
    ```
    minecraft-jar-command run --version "21w05b-arm64"
    ```
-2. You can change the game directory and working directory (where the supporting assets are downloaded). Right now, the game directory is set to the default Minecraft directory, and the working directory defaults to a temporary one to prevent interference with the default Minecraft launcher. Refer to `minecraft-jar-command help run` to see these commands.
+2. To get the latest snapshot version, run it with the `--snapshot` flag:
+   ```
+   minecraft-jar-command run --snapshot
+   ```
+3. You can change the game directory and working directory (where the supporting assets are downloaded). Right now, the game directory is set to the default Minecraft directory, and the working directory defaults to a temporary one to prevent interference with the default Minecraft launcher. Refer to `minecraft-jar-command help run` to see these commands.
 
 ## Updates
 
