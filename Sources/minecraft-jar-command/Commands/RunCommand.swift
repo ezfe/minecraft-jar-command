@@ -19,6 +19,12 @@ struct RunCommand: ParsableCommand {
     
     @Option(help: "The Minecraft version to download")
     var version: String?
+        
+    @Flag(help: "Get the most recent snapshot versions of the game when a version isn't manually specified")
+    var snapshot = false
+    
+    @Flag(help: "List available versions")
+    var listVersions = false
     
     @Option(help: "The directory to save assets and libraries to")
     var workingDirectory: String?
@@ -70,10 +76,6 @@ struct RunCommand: ParsableCommand {
         defaults.set(auth.clientToken, forKey: "clientToken")
         defaults.set(auth.accessToken, forKey: "accessToken")
         
-        print("\n\n")
-        print("./minecraft-jar-command \(auth.accessToken) \(auth.clientToken)")
-        print("\n\n")
-        
         let gameDirectory = self.gameDirectory != nil ? URL(fileURLWithPath: self.gameDirectory!) : nil
         
         let installationManager: InstallationManager
@@ -84,14 +86,36 @@ struct RunCommand: ParsableCommand {
         }
         
         if let userRequestedVersion = version {
-            installationManager.use(version: userRequestedVersion)
+            installationManager.use(version: .custom(userRequestedVersion))
+        } else if snapshot {
+            installationManager.use(version: .snapshot)
         } else {
-            installationManager.useLatest()
+            installationManager.use(version: .release)
         }
 
         // MARK: Version Info
         var versionInfoResult: Result<VersionPackage, CError> = .failure(.unknownError("Callback never completed"))
         let group = DispatchGroup()
+        
+        if listVersions {
+            group.enter()
+            print("Finding available versions...")
+            installationManager.availableVersions { versionsResult in
+                switch versionsResult {
+                    case .success(let versions):
+                        print("Available versions:")
+                        for version in versions {
+                            print("\t\(version.id)")
+                        }
+                        group.leave()
+                        Main.exit()
+                    case .failure(let error):
+                        group.leave()
+                        Main.exit(withError: error)
+                }
+            }
+        }
+        
         group.enter()
         installationManager.downloadVersionInfo { result in
             versionInfoResult = result

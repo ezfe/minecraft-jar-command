@@ -50,7 +50,11 @@ public class InstallationManager {
         self.assetsDirectory = URL(fileURLWithPath: "assets", isDirectory: true, relativeTo: absoluteBase)
         self.assetsObjectsDirectory = self.assetsDirectory.appendingPathComponent("objects", isDirectory: true)
         self.assetsIndexesDirectory = self.assetsDirectory.appendingPathComponent("indexes", isDirectory: true)
-        self.gameDirectory = gameDirectory ?? absoluteBase
+        
+        let defaultGameDirectory = URL(fileURLWithPath: NSHomeDirectory())
+            .appendingPathComponent("Library/Application Support/minecraft")
+            .absoluteURL
+        self.gameDirectory = gameDirectory ?? defaultGameDirectory
         
         print(self.baseDirectory)
         
@@ -81,13 +85,20 @@ extension InstallationManager {
             VersionManifest.downloadManifest(callback: callback)
         }
     }
-
-    public func use(version versionString: String) {
-        self.versionRequested = .custom(versionString)
-    }
     
-    public func useLatest() {
-        self.versionRequested = .release
+    public func availableVersions(callback: @escaping (Result<[VersionManifest.VersionMetadata], CError>) -> Void) {
+        self.getManifest { manifestResult in
+            switch manifestResult {
+                case .success(let manifest):
+                    callback(.success(manifest.versions))
+                case .failure(let error):
+                    callback(.failure(error))
+            }
+        }
+    }
+
+    public func use(version: VersionManifest.VersionType) {
+        self.versionRequested = version
     }
     
     public func downloadVersionInfo(callback: @escaping (Result<VersionPackage, CError>) -> Void) {
