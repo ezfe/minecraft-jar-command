@@ -8,8 +8,6 @@ This package does not have a visual interface and must be run from the command l
 
 1. Install [Homebrew](https://brew.sh) and run `brew install ezfe/tap/minecraft-jar-command`
 2. Run `minecraft-jar-command` to launch the game!
-   - You may get an error saying it can't be checked for malicious software – this is okay, click OK and open System Preferences > Security & Privacy and click "Allow Anyways"
-   - Try again after allowing it
 3. You will probably need to login first – to do this, run the `login` command:
    ```
    minecraft-jar-command login <your email> <minecraft password> --save-credentials
