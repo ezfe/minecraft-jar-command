@@ -178,7 +178,7 @@ struct RunCommand: ParsableCommand {
         switch launchArgumentsResults {
             case .success(let args):
                 let proc = Process()
-                proc.executableURL = URL(fileURLWithPath: "/usr/bin/java")
+                proc.executableURL = URL(fileURLWithPath: "/opt/homebrew/opt/openjdk/bin/java")
                 proc.arguments = args
                 proc.currentDirectoryURL = installationManager.baseDirectory
                 
