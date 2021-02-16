@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct Rule: Decodable {
+public struct Rule: Codable {
     let action: Action
     
     /// Filter this rule based on the current operating system
@@ -16,18 +16,18 @@ public struct Rule: Decodable {
     /// Filter this rule based on a feature being enabled or disabled
     let features: Feature?
     
-    struct OperatingSystem: Decodable {
+    struct OperatingSystem: Codable {
         let name: String?
         let version: String?
         let arch: String?
     }
     
-    struct Feature: Decodable {
+    struct Feature: Codable {
         let isDemoUser: Bool?
         let hasCustomResolution: Bool?
     }
     
-    enum Action: String, Decodable {
+    enum Action: String, Codable {
         case allow, disallow
     }
 }

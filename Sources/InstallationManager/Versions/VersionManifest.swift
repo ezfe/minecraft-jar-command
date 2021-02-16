@@ -29,10 +29,7 @@ public struct VersionManifest: Decodable {
 // MARK: Download Manifest
 
 public extension VersionManifest {
-//    static let url = URL(string: "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")!
-    static let url = URL(string: "https://f001.backblazeb2.com/file/com-ezekielelin-publicFiles/lwjgl-arm/version_manifest_v2.json")!
-    
-    static func downloadManifest(callback: @escaping (Result<VersionManifest, CError>) -> Void) {
+    static func downloadManifest(url: URL, callback: @escaping (Result<VersionManifest, CError>) -> Void) {
         retrieveData(url: url, callback: { (result) in
             switch result {
             case .success(let manifestData):
@@ -51,12 +48,12 @@ public extension VersionManifest {
         })
     }
     
-    static func downloadManifest() throws -> VersionManifest {
+    static func downloadManifest(url: URL) throws -> VersionManifest {
         var result: Result<VersionManifest, CError> = .failure(CError.unknownError("Missing Result Object"))
         
         let group = DispatchGroup()
         group.enter()
-        downloadManifest { (_result) in
+        downloadManifest(url: url) { (_result) in
             result = _result
             group.leave()
         }

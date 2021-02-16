@@ -13,19 +13,19 @@ import Common
  * A file that describes a specific Minecraft version, and includes information
  * like assets, libraries, and how to launch the game.
  */
-public struct VersionPackage: Decodable {
-    public let id: String
+public struct VersionPackage: Codable {
+    public var id: String
     let complianceLevel: Int
     public let mainClass: String
     public let minimumLauncherVersion: UInt
-    let releaseTime: Date
-    let time: Date
+    public var releaseTime: Date
+    public var time: Date
     let type: ReleaseType
 
     public let arguments: Arguments
     let assetIndex: AssetIndex
     public let assets: String
-    let downloads: Downloads
+    public var downloads: Downloads
     let libraries: [Library]
     let logging: Logging
     
@@ -38,6 +38,7 @@ public struct VersionPackage: Decodable {
             let versionInfo = try jsonDecoder.decode(VersionPackage.self, from: data)
             return .success(versionInfo)
         } catch let error {
+            print(error)
             return .failure(.decodingError(error.localizedDescription))
         }
     }
@@ -46,18 +47,18 @@ public struct VersionPackage: Decodable {
 // MARK:- Arguments
 
 extension VersionPackage {
-    public struct Arguments: Decodable {
+    public struct Arguments: Codable {
         public let game: [Argument]
         public let jvm: [Argument]
 
-        public struct Argument: Decodable {
+        public struct Argument: Codable {
             public let values: [String]
             public let rules: [Rule]
             
             enum CodingKeys: String, CodingKey {
                 case value, rules
             }
-                        
+            
             public init(from decoder: Decoder) throws {
                 var errors = [DecodingError]()
                 do {
@@ -122,6 +123,21 @@ extension VersionPackage {
                 
                 throw CError.decodingError("An unknown error occurred decoding an argument - program state should never allow this line to run")
             }
+            
+            public func encode(to encoder: Encoder) throws {
+                if rules.isEmpty && values.count == 1 {
+                    var svnt = encoder.singleValueContainer()
+                    try svnt.encode(values[0])
+                } else if values.count == 1 {
+                    var svc = encoder.container(keyedBy: CodingKeys.self)
+                    try svc.encode(values[0], forKey: .value)
+                    try svc.encode(rules, forKey: .rules)
+                } else {
+                    var mvc = encoder.container(keyedBy: CodingKeys.self)
+                    try mvc.encode(values, forKey: .value)
+                    try mvc.encode(rules, forKey: .rules)
+                }
+            }
         }
     }
 }
@@ -129,7 +145,7 @@ extension VersionPackage {
 // MARK:- Asset Index
 
 extension VersionPackage {
-    struct AssetIndex: Decodable {
+    struct AssetIndex: Codable {
         let id: String
         let sha1: String
         let size: UInt
@@ -141,13 +157,13 @@ extension VersionPackage {
 // MARK:- Downloads
 
 extension VersionPackage {
-    struct Downloads: Decodable {
+    public struct Downloads: Codable {
         let client: Download
-        let clientMappings: Download
+        let clientMappings: Download?
         let server: Download
-        let serverMappings: Download
+        let serverMappings: Download?
         
-        struct Download: Decodable {
+        struct Download: Codable {
             let sha1: String
             let size: UInt
             let url: String
@@ -158,24 +174,24 @@ extension VersionPackage {
 // MARK:- Library
 
 extension VersionPackage {
-    struct Library: Decodable {
+    struct Library: Codable {
         let name: String
         let downloads: Download
         let natives: Natives?
         let rules: [Rule]?
         
-        struct Download: Decodable {
+        struct Download: Codable {
             let artifact: Artifact
             let classifiers: Classifiers?
             
-            struct Artifact: Decodable {
+            struct Artifact: Codable {
                 let path: String
                 let sha1: String
                 let size: UInt
                 let url: String
             }
             
-            struct Classifiers: Decodable {
+            struct Classifiers: Codable {
                 let javadoc: Artifact?
                 let nativesLinux: Artifact?
                 let nativesMacOS: Artifact?
@@ -194,7 +210,7 @@ extension VersionPackage {
             }
         }
 
-        struct Natives: Decodable {
+        struct Natives: Codable {
             let linux: String?
             let osx: String?
             let windows: String?
@@ -205,15 +221,15 @@ extension VersionPackage {
 // MARK:- Logging
 
 extension VersionPackage {
-    struct Logging: Decodable {
+    struct Logging: Codable {
         let client: Client
         
-        struct Client: Decodable {
+        struct Client: Codable {
             let argument: String
             let file: File
             let type: String
             
-            struct File: Decodable {
+            struct File: Codable {
                 let id: String
                 let sha1: String
                 let size: UInt
@@ -226,7 +242,7 @@ extension VersionPackage {
 // MARK:- Release Type
 
 extension VersionPackage {
-    enum ReleaseType: String, Decodable {
+    enum ReleaseType: String, Codable {
         case release, snapshot
     }
 }

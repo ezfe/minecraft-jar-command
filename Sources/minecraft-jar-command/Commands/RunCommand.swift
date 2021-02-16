@@ -32,6 +32,12 @@ struct RunCommand: ParsableCommand {
     @Option(help: "The directory to start the game in")
     var gameDirectory: String?
     
+    @Flag(help: "Use Mojang manifest (no ARM support)")
+    var mojangManifest: Bool = false
+    
+    @Option(help: "Switch Java versions")
+    var javaExecutable = "/opt/homebrew/opt/openjdk/bin/java"
+    
     /*
     @Flag(help: "Print out the new access token before running the game")
     var printAccessToken: Bool = false
@@ -75,6 +81,14 @@ struct RunCommand: ParsableCommand {
         
         defaults.set(auth.clientToken, forKey: "clientToken")
         defaults.set(auth.accessToken, forKey: "accessToken")
+
+        let manifestUrl: URL
+        if mojangManifest {
+            manifestUrl = URL(string: "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")!
+        } else {
+            manifestUrl = URL(string: "https://f001.backblazeb2.com/file/com-ezekielelin-publicFiles/lwjgl-arm/version_manifest_v2.json")!
+        }
+
         
         let gameDirectory = self.gameDirectory != nil ? URL(fileURLWithPath: self.gameDirectory!) : nil
         
@@ -100,7 +114,7 @@ struct RunCommand: ParsableCommand {
         if listVersions {
             group.enter()
             print("Finding available versions...")
-            installationManager.availableVersions { versionsResult in
+            installationManager.availableVersions(url: manifestUrl) { versionsResult in
                 switch versionsResult {
                     case .success(let versions):
                         print("Available versions:")
@@ -117,7 +131,7 @@ struct RunCommand: ParsableCommand {
         }
         
         group.enter()
-        installationManager.downloadVersionInfo { result in
+        installationManager.downloadVersionInfo(url: manifestUrl) { result in
             versionInfoResult = result
             group.leave()
         }
@@ -173,12 +187,12 @@ struct RunCommand: ParsableCommand {
         group.wait()
         
         try installationManager.copyNatives()
-                
+        
         let launchArgumentsResults = installationManager.launchArguments(with: auth)
         switch launchArgumentsResults {
             case .success(let args):
                 let proc = Process()
-                proc.executableURL = URL(fileURLWithPath: "/opt/homebrew/opt/openjdk/bin/java")
+                proc.executableURL = URL(fileURLWithPath: javaExecutable)
                 proc.arguments = args
                 proc.currentDirectoryURL = installationManager.baseDirectory
                 

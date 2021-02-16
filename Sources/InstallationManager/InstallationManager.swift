@@ -25,7 +25,7 @@ public class InstallationManager {
     
     // MARK: Installation State
     public private(set) var versionRequested: VersionManifest.VersionType = .release
-    public private(set) var manifest: VersionManifest? = nil
+    public private(set) var manifests: [URL: VersionManifest] = [:]
     public private(set) var version: VersionPackage? = nil
     public private(set) var jar: URL? = nil
     public private(set) var libraryMetadata: [LibraryMetadata] = []
@@ -56,8 +56,6 @@ public class InstallationManager {
             .absoluteURL
         self.gameDirectory = gameDirectory ?? defaultGameDirectory
         
-        print(self.baseDirectory)
-        
         try createDirectories()
     }
     
@@ -78,16 +76,24 @@ extension InstallationManager {
         return URL(fileURLWithPath: "versions/\(version)", relativeTo: self.baseDirectory)
     }
     
-    func getManifest(callback: @escaping (Result<VersionManifest, CError>) -> Void) {
-        if let manifest = self.manifest {
+    func getManifest(url: URL, callback: @escaping (Result<VersionManifest, CError>) -> Void) {
+        if let manifest = self.manifests[url] {
             callback(.success(manifest))
         } else {
-            VersionManifest.downloadManifest(callback: callback)
+            VersionManifest.downloadManifest(url: url) { manifestResult in
+                switch manifestResult {
+                    case .success(let manifest):
+                        self.manifests[url] = manifest
+                    default:
+                        break
+                }
+                callback(manifestResult)
+            }
         }
     }
     
-    public func availableVersions(callback: @escaping (Result<[VersionManifest.VersionMetadata], CError>) -> Void) {
-        self.getManifest { manifestResult in
+    public func availableVersions(url: URL, callback: @escaping (Result<[VersionManifest.VersionMetadata], CError>) -> Void) {
+        self.getManifest(url: url) { manifestResult in
             switch manifestResult {
                 case .success(let manifest):
                     callback(.success(manifest.versions))
@@ -101,7 +107,7 @@ extension InstallationManager {
         self.versionRequested = version
     }
     
-    public func downloadVersionInfo(callback: @escaping (Result<VersionPackage, CError>) -> Void) {
+    public func downloadVersionInfo(url: URL, callback: @escaping (Result<VersionPackage, CError>) -> Void) {
         let fm = FileManager.default
 
         // Check if the file exists on the local file system, and if it does
@@ -142,7 +148,7 @@ extension InstallationManager {
 
         // If we haven't aborted at this point, then no file already exists, or one
         // did and has been removed in the meantime.
-        self.getManifest { manifestResult in
+        self.getManifest(url: url) { manifestResult in
             switch manifestResult {
                 case .success(let manifest):
                     let entryResult = manifest.get(version: self.versionRequested)
