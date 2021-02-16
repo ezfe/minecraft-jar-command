@@ -79,7 +79,20 @@ struct ArmPatchCommand: ParsableCommand {
         
         if self.shaSum {
             let hashed = Insecure.SHA1.hash(data: data)
+            
             print(hashed.description)
+
+            struct NeededValues: Encodable {
+                let id: String
+                let time: Date
+                let releaseTime: Date
+            }
+            let neededValues = NeededValues(id: newVersion.id,
+                                            time: newVersion.time,
+                                            releaseTime: newVersion.releaseTime)
+            let encoded = try encoder.encode(neededValues)
+            let stringValue = String(data: encoded, encoding: .utf8)!.dropFirst().dropLast().replacingOccurrences(of: ",", with: ",\n").appending(",")
+            print(stringValue)
         } else {
             let string = String(data: data, encoding: .utf8)!
             print(string)
