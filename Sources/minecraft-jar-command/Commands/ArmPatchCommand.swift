@@ -91,7 +91,11 @@ struct ArmPatchCommand: ParsableCommand {
                                             time: newVersion.time,
                                             releaseTime: newVersion.releaseTime)
             let encoded = try encoder.encode(neededValues)
-            let stringValue = String(data: encoded, encoding: .utf8)!.dropFirst().dropLast().replacingOccurrences(of: ",", with: ",\n").appending(",")
+            let stringValue = String(data: encoded, encoding: .utf8)!
+                .dropFirst()
+                .dropLast()
+                .replacingOccurrences(of: ",", with: ",\n")
+                .appending(",")
             print(stringValue)
         } else {
             let string = String(data: data, encoding: .utf8)!
