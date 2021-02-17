@@ -67,7 +67,7 @@ struct ArmPatchCommand: ParsableCommand {
     
         var newVersion = armVersion
         
-        newVersion.id = mojangVersion.id
+        newVersion.id = "\(mojangVersion.id)-arm64"
         newVersion.downloads = mojangVersion.downloads
         newVersion.time = mojangVersion.time
         newVersion.releaseTime = mojangVersion.releaseTime
