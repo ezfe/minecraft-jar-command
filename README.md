@@ -13,6 +13,7 @@ This package does not have a visual interface and must be run from the command l
    minecraft-jar-command login <your email> <minecraft password> --save-credentials
    ```
    - Your password will not be saved, only your access token - this is how the regular Minecraft launcher logs you in as well
+   - If you have any special characters, you may need to put quotes around your email or password. You can do this even if you don't have special characters, to be sure.
    
 Tips:
 1. You can change the game version - the latest release version will be used by default. Only some versions are available, you can view the complete list [here](https://f001.backblazeb2.com/file/com-ezekielelin-publicFiles/lwjgl-arm/version_manifest_v2.json).
