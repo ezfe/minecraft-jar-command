@@ -102,16 +102,16 @@ struct RunCommand: ParsableCommand {
             installationManager = try InstallationManager(gameDirectory: gameDirectory)
         }
         
+        if printWorkingDirectory {
+            print("Working Directory: \(installationManager.baseDirectory.absoluteString)")
+        }
+        
         if let userRequestedVersion = version {
             installationManager.use(version: .custom(userRequestedVersion))
         } else if snapshot {
             installationManager.use(version: .snapshot)
         } else {
             installationManager.use(version: .release)
-        }
-        
-        if printWorkingDirectory {
-            print("Working Directory: \(installationManager.baseDirectory.absoluteString)")
         }
 
         // MARK: Version Info
