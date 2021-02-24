@@ -80,8 +80,7 @@ struct RunCommand: ParsableCommand {
             Main.exit()
         }
         
-//        let auth = try AuthenticationManager.refresh(accessToken: accessToken, clientToken: clientToken)
-        let auth = AuthResult(accessToken: "", clientToken: "", profile: Profile(name: "", id: ""))
+        let auth = try AuthenticationManager.refresh(accessToken: accessToken, clientToken: clientToken)
         
         defaults.set(auth.clientToken, forKey: "clientToken")
         defaults.set(auth.accessToken, forKey: "accessToken")
