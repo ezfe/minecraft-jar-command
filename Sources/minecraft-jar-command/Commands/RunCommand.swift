@@ -35,6 +35,9 @@ struct RunCommand: ParsableCommand {
     @Flag(help: "Use Mojang manifest (no ARM support)")
     var mojangManifest: Bool = false
     
+    @Flag(help: "Print the working directory")
+    var printWorkingDirectory: Bool = false
+    
     @Option(help: "Switch Java versions")
     var javaExecutable = "/opt/homebrew/opt/openjdk/bin/java"
     
@@ -77,7 +80,8 @@ struct RunCommand: ParsableCommand {
             Main.exit()
         }
         
-        let auth = try AuthenticationManager.refresh(accessToken: accessToken, clientToken: clientToken)
+//        let auth = try AuthenticationManager.refresh(accessToken: accessToken, clientToken: clientToken)
+        let auth = AuthResult(accessToken: "", clientToken: "", profile: Profile(name: "", id: ""))
         
         defaults.set(auth.clientToken, forKey: "clientToken")
         defaults.set(auth.accessToken, forKey: "accessToken")
@@ -105,6 +109,10 @@ struct RunCommand: ParsableCommand {
             installationManager.use(version: .snapshot)
         } else {
             installationManager.use(version: .release)
+        }
+        
+        if printWorkingDirectory {
+            print("Working Directory: \(installationManager.baseDirectory.absoluteString)")
         }
 
         // MARK: Version Info
