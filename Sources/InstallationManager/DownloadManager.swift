@@ -49,6 +49,8 @@ struct DownloadManager {
             }
             group.wait()
 
+            print("==== Finished Download Batch : \(batchName) ====")
+
             if let error = foundError {
                 callback(.failure(error))
             } else {
