@@ -29,6 +29,8 @@ public struct VersionPackage: Codable {
     let libraries: [Library]
     let logging: Logging
     
+    public let javaVersion: JavaVersion?
+    
     static func decode(from data: Data) -> Result<VersionPackage, CError> {
         let jsonDecoder = JSONDecoder()
         jsonDecoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -182,31 +184,13 @@ extension VersionPackage {
         
         struct Download: Codable {
             let artifact: Artifact
-            let classifiers: Classifiers?
+            let classifiers: [String: Artifact]?
             
             struct Artifact: Codable {
                 let path: String
                 let sha1: String
                 let size: UInt
                 let url: String
-            }
-            
-            struct Classifiers: Codable {
-                let javadoc: Artifact?
-                let nativesLinux: Artifact?
-                let nativesMacOS: Artifact?
-                let nativesOSX: Artifact?
-                let nativesWindows: Artifact?
-                let sources: Artifact?
-
-                enum CodingKeys: String, CodingKey {
-                    case javadoc
-                    case nativesLinux = "natives-linux"
-                    case nativesMacOS = "natives-macos"
-                    case nativesOSX = "natives-osx"
-                    case nativesWindows = "natives-windows"
-                    case sources
-                }
             }
         }
 
@@ -244,5 +228,14 @@ extension VersionPackage {
 extension VersionPackage {
     enum ReleaseType: String, Codable {
         case release, snapshot
+    }
+}
+
+// MARK:- Java Version
+
+extension VersionPackage {
+    public struct JavaVersion: Codable {
+        let component: String
+        public let majorVersion: Int
     }
 }

@@ -9,6 +9,7 @@ import Foundation
 import Common
 import MojangRules
 import MojangAuthentication
+import Zip
 
 public class InstallationManager {
     // MARK: Directories
@@ -28,6 +29,7 @@ public class InstallationManager {
     public private(set) var manifests: [URL: VersionManifest] = [:]
     public private(set) var version: VersionPackage? = nil
     public private(set) var jar: URL? = nil
+    public private(set) var javaBundle: URL? = nil
     public private(set) var libraryMetadata: [LibraryMetadata] = []
     
     public convenience init(requestedDirectory: URL, gameDirectory: URL? = nil) throws {
@@ -257,7 +259,7 @@ extension InstallationManager {
             return nil
         }
 
-        guard let macosNativeDict = libraryInfo.downloads.classifiers?.nativesMacOS ?? libraryInfo.downloads.classifiers?.nativesOSX else {
+        guard let macosNativeDict = libraryInfo.downloads.classifiers?[nativesMappingKey] else {
             // This is a failure point, however
             throw CError.decodingError("There's a natives entry for macOS = \(nativesMappingKey), but there's no corresponding download")
         }
@@ -408,6 +410,89 @@ extension InstallationManager {
                 case .failure(let error):
                     callback(.failure(error))
                     return
+            }
+        }
+    }
+}
+
+// MARK:- Java Version Management
+extension InstallationManager {
+    func javaVersionDirectory() -> URL {
+        return URL(fileURLWithPath: "runtimes", relativeTo: self.baseDirectory)
+    }
+    
+    func javaVersionInfo(url: URL, callback: @escaping (Result<VersionManifest.JavaVersionInfo, CError>) -> Void) {
+        guard let version = self.version else {
+            callback(.failure(CError.stateError("\(#function) must not be called before `version` is set")))
+            return
+        }
+        
+        let javaVersion = version.javaVersion?.majorVersion ?? 8
+        
+        self.getManifest(url: url) { manifestResult in
+            switch manifestResult {
+                case .success(let manifest):
+                    let info = manifest.javaVersions.first { $0.version == javaVersion }
+                    if let info = info {
+                        callback(.success(info))
+                    } else {
+                        callback(.failure(
+                            .unknownError("Unable to find Java version \(javaVersion)")
+                        ))
+                    }
+                case .failure(let error):
+                    callback(.failure(error))
+            }
+        }
+    }
+
+    public func downloadJava(url: URL, callback: @escaping (Result<URL, CError>) -> Void) {
+        guard let version = self.version else {
+            callback(.failure(.stateError("\(#function) must not be called before `version` is set")))
+            return
+        }
+        
+        let javaVersion = version.javaVersion?.majorVersion ?? 8
+        
+        let temporaryDestinationURL = self.javaVersionDirectory()
+            .appendingPathComponent("java-\(javaVersion).zip")
+
+        let bundleDestinationURL = self.javaVersionDirectory()
+            .appendingPathComponent("java-\(javaVersion).bundle")
+        
+        javaVersionInfo(url: url) { infoResult in
+            switch infoResult {
+                case .success(let javaVersionInfo):
+                    guard let remoteURL = URL(string: javaVersionInfo.url) else {
+                        callback(.failure(.decodingError("Failed to convert \(javaVersionInfo.url) to URL")))
+                        break
+                    }
+                    let request = DownloadManager.DownloadRequest(taskName: "Java Runtime",
+                                                                  remoteURL: remoteURL,
+                                                                  destinationURL: temporaryDestinationURL,
+                                                                  size: javaVersionInfo.size,
+                                                                  sha1: javaVersionInfo.sha1)
+                    
+                    DownloadManager.shared.download(request) { result in
+                        print("Finished downloading the java runtime")
+                        do {
+                            if FileManager.default.fileExists(atPath: bundleDestinationURL.path) {
+                                try FileManager.default.removeItem(atPath: bundleDestinationURL.path)
+                            }
+                            
+                            try Zip.unzipFile(temporaryDestinationURL,
+                                              destination: bundleDestinationURL,
+                                              overwrite: true,
+                                              password: nil)
+                            
+                            self.javaBundle = bundleDestinationURL
+                            callback(.success(bundleDestinationURL))
+                        } catch (let error) {
+                            callback(.failure(.filesystemError("Failed to unzip Java runtime bundle: \(error.localizedDescription)")))
+                        }
+                    }
+                case .failure(let error):
+                    callback(.failure(error))
             }
         }
     }

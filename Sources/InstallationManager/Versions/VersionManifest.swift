@@ -11,6 +11,7 @@ import Common
 public struct VersionManifest: Decodable {
     let latest: Latest
     let versions: [VersionMetadata]
+    let javaVersions: [JavaVersionInfo]
 
     public struct VersionMetadata: Decodable {
         public let id: String
@@ -23,6 +24,13 @@ public struct VersionManifest: Decodable {
     public struct Latest: Decodable {
         let release: String
         let snapshot: String
+    }
+    
+    public struct JavaVersionInfo: Decodable {
+        let version: Int
+        let url: String
+        let size: UInt
+        let sha1: String
     }
 }
 

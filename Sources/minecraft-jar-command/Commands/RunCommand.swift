@@ -38,8 +38,8 @@ struct RunCommand: ParsableCommand {
     @Flag(help: "Print the working directory")
     var printWorkingDirectory: Bool = false
     
-    @Option(help: "Switch Java versions")
-    var javaExecutable = "/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home/bin/java"
+//    @Option(help: "Switch Java versions")
+//    var javaExecutable = "/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home/bin/java"
     
     /*
     @Flag(help: "Print out the new access token before running the game")
@@ -69,13 +69,13 @@ struct RunCommand: ParsableCommand {
      */
     
     mutating func run() throws {
-        if !FileManager.default.fileExists(atPath: javaExecutable) {
-            print("You must install Java 8")
-            print("Recommended: Azul Zulu Java 8 LTS")
-            print("https://www.azul.com/downloads/?version=java-8-lts&os=macos&architecture=arm-64-bit&package=jdk")
-            print("Expected Java location: \(javaExecutable)")
-            Main.exit()
-        }
+//        if !FileManager.default.fileExists(atPath: javaExecutable) {
+//            print("You must install Java 8")
+//            print("Recommended: Azul Zulu Java 8 LTS")
+//            print("https://www.azul.com/downloads/?version=java-8-lts&os=macos&architecture=arm-64-bit&package=jdk")
+//            print("Expected Java location: \(javaExecutable)")
+//            Main.exit()
+//        }
         
         let defaults = UserDefaults.standard
         
@@ -177,6 +177,17 @@ struct RunCommand: ParsableCommand {
         }
         
         group.enter()
+        installationManager.downloadJava(url: manifestUrl) { result in
+            switch result {
+                case .failure(let error):
+                    Main.exit(withError: error)
+                default:
+                    break
+            }
+            group.leave()
+        }
+
+        group.enter()
         installationManager.downloadAssets { result in
             switch result {
                 case .failure(let error):
@@ -206,9 +217,13 @@ struct RunCommand: ParsableCommand {
         let launchArgumentsResults = installationManager.launchArguments(with: auth)
         switch launchArgumentsResults {
             case .success(let args):
+                // java
+                let javaBundle = installationManager.javaBundle!
+                let javaExec = javaBundle.appendingPathComponent("Contents/Home/bin/java", isDirectory: false)
+                
                 print("Game parameters...")
                 let proc = Process()
-                proc.executableURL = URL(fileURLWithPath: javaExecutable)
+                proc.executableURL = javaExec
                 proc.arguments = args
                 proc.currentDirectoryURL = installationManager.baseDirectory
 
