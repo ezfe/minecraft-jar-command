@@ -9,53 +9,40 @@ import Foundation
 import Crypto
 import Common
 
-struct DownloadManager {
-    static let shared = DownloadManager()
-
-    fileprivate init() { }
-
-    func download(_ batch: [DownloadRequest],
-                  named batchName: String,
-                  progress: @escaping (Double) -> Void,
-                  callback: @escaping (Result<Void, CError>) -> Void) {
-        
-        DispatchQueue.global(qos: .utility).async {
+actor DownloadManager {
+    let batch: [DownloadRequest]
+    let batchName: String?
+    let totalSize: UInt
+    var currentTotal: UInt = 0
+    
+    init(_ batch: [DownloadRequest], named batchName: String) {
+        self.batch = batch
+        self.batchName = batchName
+        self.totalSize = batch.map { $0.size }.reduce(0, +)
+    }
+    
+    init(_ request: DownloadRequest) {
+        self.batch = [request]
+        self.batchName = nil
+        self.totalSize = request.size
+    }
+    
+    func download(progress: ((Double) -> Void)? = nil) async throws {
+        if let batchName = batchName {
             print("==== Starting Download Batch : \(batchName) ====")
+        }
+                
+        for request in batch {
+            try await self.download(request)
             
-            let reportingQueue = DispatchQueue(label: "reporting-queue")
-            let totalSize = batch.map { $0.size }.reduce(0, +)
-            var currentTotal: UInt = 0
-            
-            var foundError: CError? = nil
-            
-            let group = DispatchGroup()
-            for request in batch {
-                group.enter()
-                self.download(request) { result in
-                    switch result {
-                        case .success(_):
-                            break
-                        case .failure(let error):
-                            foundError = error
-                            return
-                    }
-
-                    reportingQueue.sync {
-                        currentTotal += request.size
-                        progress(Double(currentTotal) / Double(totalSize))
-                    }
-                    group.leave()
-                }
+            currentTotal += request.size
+            if let progress = progress {
+                progress(Double(currentTotal) / Double(totalSize))
             }
-            group.wait()
+        }
 
+        if let batchName = batchName {
             print("==== Finished Download Batch : \(batchName) ====")
-
-            if let error = foundError {
-                callback(.failure(error))
-            } else {
-                callback(.success(()))
-            }
         }
     }
 
@@ -71,12 +58,11 @@ struct DownloadManager {
         return false
     }
     
-    func download(_ request: DownloadRequest, callback: @escaping (Result<Void, CError>) -> Void) {
+    private func download(_ request: DownloadRequest) async throws {
         let fm = FileManager.default
 
         do {
             if verifySha1(url: request.destinationURL, sha1: request.sha1, fm: fm) {
-                callback(.success((/* void */)))
                 return
             } else {
                 if fm.fileExists(atPath: request.destinationURL.path) {
@@ -87,30 +73,31 @@ struct DownloadManager {
                 // continuing on to download file
             }
         } catch let err {
-            callback(.failure(CError.filesystemError(err.localizedDescription)))
-            return
+            throw CError.filesystemError(err.localizedDescription)
         }
-
-        let task = URLSession.shared.downloadTask(with: request.remoteURL) { (temporaryURL, response, error) in
-            guard let temporaryURL = temporaryURL, error == nil else {
-                callback(.failure(.networkError(error?.localizedDescription ?? "Unknown error download error")))
-                return
-            }
-
-            do {
-                if fm.fileExists(atPath: request.destinationURL.path) {
-                    try fm.removeItem(at: request.destinationURL)
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            let task = URLSession.shared.downloadTask(with: request.remoteURL) { (temporaryURL, response, error) in
+                guard let temporaryURL = temporaryURL, error == nil else {
+                    continuation.resume(throwing: CError.networkError(error?.localizedDescription ?? "Unknown error download error"))
+                    return
                 }
-                try fm.moveItem(at: temporaryURL, to: request.destinationURL)
-            } catch let err {
-                callback(.failure(.filesystemError(err.localizedDescription)))
+
+                do {
+                    if fm.fileExists(atPath: request.destinationURL.path) {
+                        try fm.removeItem(at: request.destinationURL)
+                    }
+                    try fm.moveItem(at: temporaryURL, to: request.destinationURL)
+                } catch let err {
+                    continuation.resume(throwing: CError.filesystemError(err.localizedDescription))
+                    return
+                }
+
+                continuation.resume()
                 return
             }
-            
-            callback(.success((/* void */)))
-            return
+            task.resume()
         }
-        task.resume()
     }
 }
 

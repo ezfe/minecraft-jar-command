@@ -37,42 +37,17 @@ public struct VersionManifest: Decodable {
 // MARK: Download Manifest
 
 public extension VersionManifest {
-    static func downloadManifest(url: URL, callback: @escaping (Result<VersionManifest, CError>) -> Void) {
-        retrieveData(url: url, callback: { (result) in
-            switch result {
-            case .success(let manifestData):
-                let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .iso8601
-                
-                guard let manifest = try? decoder.decode(VersionManifest.self, from: manifestData) else {
-                    callback(.failure(CError.decodingError("Failed to decode Version Manifest")))
-                    return
-                }
-            
-                callback(.success(manifest))
-            case .failure(let error):
-                callback(.failure(.unknownError(error.localizedDescription)))
-            }
-        })
-    }
+    static func downloadManifest(url: URL) async throws -> VersionManifest {
+        let manifestData = try await retrieveData(url: url)
+        
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        
+        guard let manifest = try? decoder.decode(VersionManifest.self, from: manifestData) else {
+            throw CError.decodingError("Failed to decode Version Manifest")
+        }
     
-    static func downloadManifest(url: URL) throws -> VersionManifest {
-        var result: Result<VersionManifest, CError> = .failure(CError.unknownError("Missing Result Object"))
-        
-        let group = DispatchGroup()
-        group.enter()
-        downloadManifest(url: url) { (_result) in
-            result = _result
-            group.leave()
-        }
-        group.wait()
-        
-        switch result {
-        case .success(let manifest):
-            return manifest
-        case .failure(let error):
-            throw error
-        }
+        return manifest
     }
 }
 
@@ -85,7 +60,7 @@ public extension VersionManifest {
         case custom(String)
     }
     
-    func get(version: VersionType) -> Result<VersionManifest.VersionMetadata, CError> {
+    func get(version: VersionType) throws -> VersionManifest.VersionMetadata {
         let versionString: String
         switch version {
             case .release:
@@ -101,9 +76,9 @@ public extension VersionManifest {
         })
         
         if let versionManifestEntry = versionManifestEntry {
-            return .success(versionManifestEntry)
+            return versionManifestEntry
         } else {
-            return .failure(CError.unknownVersion(versionString))
+            throw CError.unknownVersion(versionString)
         }
     }
 

@@ -78,38 +78,25 @@ extension InstallationManager {
         return URL(fileURLWithPath: "versions/\(version)", relativeTo: self.baseDirectory)
     }
     
-    func getManifest(url: URL, callback: @escaping (Result<VersionManifest, CError>) -> Void) {
+    func getManifest(url: URL) async throws -> VersionManifest {
         if let manifest = self.manifests[url] {
-            callback(.success(manifest))
+            return manifest
         } else {
-            VersionManifest.downloadManifest(url: url) { manifestResult in
-                switch manifestResult {
-                    case .success(let manifest):
-                        self.manifests[url] = manifest
-                    default:
-                        break
-                }
-                callback(manifestResult)
-            }
+            let manifest = try await VersionManifest.downloadManifest(url: url)
+            self.manifests[url] = manifest
+            return manifest
         }
     }
     
-    public func availableVersions(url: URL, callback: @escaping (Result<[VersionManifest.VersionMetadata], CError>) -> Void) {
-        self.getManifest(url: url) { manifestResult in
-            switch manifestResult {
-                case .success(let manifest):
-                    callback(.success(manifest.versions))
-                case .failure(let error):
-                    callback(.failure(error))
-            }
-        }
+    public func availableVersions(url: URL) async throws -> [VersionManifest.VersionMetadata] {
+        return try await self.getManifest(url: url).versions
     }
 
     public func use(version: VersionManifest.VersionType) {
         self.versionRequested = version
     }
     
-    public func downloadVersionInfo(url: URL, callback: @escaping (Result<VersionPackage, CError>) -> Void) {
+    public func downloadVersionInfo(url: URL) async throws -> VersionPackage {
         let fm = FileManager.default
 
         // Check if the file exists on the local file system, and if it does
@@ -123,24 +110,20 @@ extension InstallationManager {
                     try fm.createDirectory(at: targetFileLocation.deletingLastPathComponent(),
                                            withIntermediateDirectories: true)
                 } catch let err {
-                    callback(.failure(.filesystemError(err.localizedDescription)))
-                    return
+                    throw CError.filesystemError(err.localizedDescription)
                 }
                 if fm.fileExists(atPath: targetFileLocation.path) {
                     if let versionData = fm.contents(atPath: targetFileLocation.path) {
-                        let result = VersionPackage.decode(from: versionData)
-                        switch result {
-                            case .success(let versionPackage):
-                                if versionPackage.id == versionString {
-                                    self.version = versionPackage
-                                    callback(.success(versionPackage))
-                                    return
-                                } else {
-                                    // else continue on as if the versionData didn't
-                                    // decode properly
-                                }
-                            default:
-                                break
+                        let versionPackage = try? VersionPackage.decode(from: versionData)
+                        
+                        if let versionPackage = versionPackage {
+                            if versionPackage.id == versionString {
+                                self.version = versionPackage
+                                return versionPackage
+                            } else {
+                                // else continue on as if the versionData didn't
+                                // decode properly
+                            }
                         }
                     }
                 }
@@ -150,71 +133,43 @@ extension InstallationManager {
 
         // If we haven't aborted at this point, then no file already exists, or one
         // did and has been removed in the meantime.
-        self.getManifest(url: url) { manifestResult in
-            switch manifestResult {
-                case .success(let manifest):
-                    let entryResult = manifest.get(version: self.versionRequested)
-                    
-                    switch entryResult {
-                        case .success(let entry):
-                            retrieveData(url: entry.url) { versionDataResult in
-                                switch versionDataResult {
-                                    case .success(let versionData):
-                                        let packageResult = VersionPackage.decode(from: versionData)
-                                        switch packageResult {
-                                            case .success(let package):
-                                                let targetFileLocation = self.destinationDirectory(for: package.id).appendingPathComponent("\(package.id).json")
+        let manifest = try await self.getManifest(url: url)
+        let entry = try manifest.get(version: self.versionRequested)
+        
+        let versionData = try await retrieveData(url: entry.url)
+        
+        let package = try VersionPackage.decode(from: versionData)
 
-                                                do {
-                                                    if fm.fileExists(atPath: targetFileLocation.path) {
-                                                        try fm.removeItem(at: targetFileLocation)
-                                                    }
-                                                } catch let err {
-                                                    callback(.failure(.filesystemError(err.localizedDescription)))
-                                                    return
-                                                }
-
-                                                fm.createFile(atPath: targetFileLocation.path,
-                                                              contents: versionData)
-                                                
-                                                self.version = package
-                                                callback(VersionPackage.decode(from: versionData))
-                                                return
-                                            case .failure(let error):
-                                                callback(.failure(error))
-                                                return
-                                        }
-                                    case .failure(let error):
-                                        callback(.failure(error))
-                                        return
-                                }
-                            }
-                        case .failure(let error):
-                            callback(.failure(error))
-                            return
-                    }
-                case .failure(let error):
-                    callback(.failure(error))
-                    return
+        let targetFileLocation = self.destinationDirectory(for: package.id).appendingPathComponent("\(package.id).json")
+        
+        do {
+            if fm.fileExists(atPath: targetFileLocation.path) {
+                try fm.removeItem(at: targetFileLocation)
             }
+        } catch let err {
+            throw CError.filesystemError(err.localizedDescription)
         }
+        
+        fm.createFile(atPath: targetFileLocation.path,
+                      contents: versionData)
+        
+        self.version = package
+        return try VersionPackage.decode(from: versionData)
     }
 }
 
 // MARK:- JAR Management
 
 extension InstallationManager {
-    public func downloadJar(callback: @escaping (Result<URL, CError>) -> Void) {
+    public func downloadJar() async throws {
         guard let version = self.version else {
-            callback(.failure(CError.stateError("\(#function) must not be called before `version` is set")))
-            return
+            throw CError.stateError("\(#function) must not be called before `version` is set")
         }
         
         let destinationURL = self.destinationDirectory(for: version.id).appendingPathComponent("\(version.id).jar")
         
         guard let remoteURL = URL(string: version.downloads.client.url) else {
-            callback(.failure(CError.decodingError("Failed to parse out client JAR download URL")))
-            return
+            throw CError.decodingError("Failed to parse out client JAR download URL")
         }
         
         let request = DownloadManager.DownloadRequest(taskName: "Client JAR File",
@@ -223,10 +178,9 @@ extension InstallationManager {
                                                       size: version.downloads.client.size,
                                                       sha1: version.downloads.client.sha1)
         
-        DownloadManager.shared.download(request) { result in
-            self.jar = destinationURL
-            callback(.success(destinationURL))
-        }
+        let downloader = DownloadManager(request)
+        try await downloader.download()
+        self.jar = destinationURL
     }
 }
 
@@ -314,18 +268,16 @@ extension InstallationManager {
         }
     }
     
-    public func downloadLibraries(progress: @escaping (Double) -> Void = { _ in },
-                                  callback: @escaping (Result<[LibraryMetadata], CError>) -> Void) {
+    public func downloadLibraries(progress: @escaping (Double) -> Void = { _ in }) async throws -> [LibraryMetadata] {
         let libraryMetadataResult = createLibraryMetadata()
         switch libraryMetadataResult {
             case .success(let libraryMetadata):
                 let requests = libraryMetadata.map { $0.downloadRequest }
-                DownloadManager.shared.download(requests, named: "Libraries", progress: progress) { result in
-                    callback(result.map { libraryMetadata })
-                }
+                let downloader = DownloadManager(requests, named: "Libraries")
+                try await downloader.download(progress: progress)
+                return libraryMetadata
             case .failure(let error):
-                callback(.failure(error))
-                
+                throw error
         }
     }
 }
@@ -348,70 +300,46 @@ extension InstallationManager {
 // MARK:- Asset Management
 
 extension InstallationManager {
-    public func downloadAssets(progress: @escaping (Double) -> Void = { _ in },
-                               callback: @escaping (Result<Void, CError>) -> Void) {
-
+    public func downloadAssets(progress: @escaping (Double) -> Void = { _ in }) async throws {
         guard let version = self.version else {
-            callback(.failure(CError.stateError("\(#function) must not be called before `version` is set")))
-            return
+            throw CError.stateError("\(#function) must not be called before `version` is set")
         }
         
         let assetIndex = version.assetIndex
         guard let assetIndexURL = URL(string: assetIndex.url) else {
-            callback(.failure(.decodingError("Failed to retrieve asset index URL")))
-            return
+            throw CError.decodingError("Failed to retrieve asset index URL")
         }
 
-        retrieveData(url: assetIndexURL) { indexDataResult in
-            switch indexDataResult {
-                case .success(let indexData):
-                    let indexJSONFileURL = self.assetsIndexesDirectory.appendingPathComponent("\(assetIndex.id).json")
-                    do {
-                        try indexData.write(to: indexJSONFileURL)
-                    } catch let error {
-                        callback(.failure(.filesystemError(error.localizedDescription)))
-                        return
-                    }
-                    
-                    let index: AssetsIndex
-                    do {
-                        let decoder = JSONDecoder()
-                        index = try decoder.decode(AssetsIndex.self, from: indexData)
-                    } catch let error {
-                        callback(.failure(.decodingError(error.localizedDescription)))
-                        return
-                    }
-                    
-                    let downloadRequests: [DownloadManager.DownloadRequest]
-                    do {
-                        downloadRequests = try index.objects.map { (name, metadata) -> DownloadManager.DownloadRequest in
-                            let res = buildAssetRequest(name: name, hash: metadata.hash, size: metadata.size, installationManager: self)
-                            switch res {
-                            case .success(let request):
-                                return request
-                            case .failure(let error):
-                                throw error
-                            }
-                        }
-                    } catch let error {
-                        if let error = error as? CError {
-                            callback(.failure(error))
-                        } else {
-                            callback(.failure(.unknownError(error.localizedDescription)))
-                        }
-                        return
-                    }
-                    
-                    DownloadManager.shared.download(downloadRequests,
-                                                    named: "Asset Collection",
-                                                    progress: progress,
-                                                    callback: callback)
-
-                case .failure(let error):
-                    callback(.failure(error))
-                    return
+        let indexData = try await retrieveData(url: assetIndexURL)
+         
+        let indexJSONFileURL = self.assetsIndexesDirectory.appendingPathComponent("\(assetIndex.id).json")
+        do {
+            try indexData.write(to: indexJSONFileURL)
+        } catch let error {
+            throw CError.filesystemError(error.localizedDescription)
+        }
+        
+        let index: AssetsIndex
+        do {
+            let decoder = JSONDecoder()
+            index = try decoder.decode(AssetsIndex.self, from: indexData)
+        } catch let error {
+            throw CError.decodingError(error.localizedDescription)
+        }
+        
+        let downloadRequests: [DownloadManager.DownloadRequest]
+        downloadRequests = try index.objects.map { (name, metadata) in
+            let res = buildAssetRequest(name: name, hash: metadata.hash, size: metadata.size, installationManager: self)
+            switch res {
+            case .success(let request):
+                return request
+            case .failure(let error):
+                throw error
             }
         }
+        
+        let downloader = DownloadManager(downloadRequests, named: "Asset Collection")
+        try await downloader.download(progress: progress)
     }
 }
 
@@ -421,35 +349,25 @@ extension InstallationManager {
         return URL(fileURLWithPath: "runtimes", relativeTo: self.baseDirectory)
     }
     
-    func javaVersionInfo(url: URL, callback: @escaping (Result<VersionManifest.JavaVersionInfo, CError>) -> Void) {
+    func javaVersionInfo(url: URL) async throws -> VersionManifest.JavaVersionInfo {
         guard let version = self.version else {
-            callback(.failure(CError.stateError("\(#function) must not be called before `version` is set")))
-            return
+            throw CError.stateError("\(#function) must not be called before `version` is set")
         }
         
         let javaVersion = version.javaVersion?.majorVersion ?? 8
         
-        self.getManifest(url: url) { manifestResult in
-            switch manifestResult {
-                case .success(let manifest):
-                    let info = manifest.javaVersions.first { $0.version == javaVersion }
-                    if let info = info {
-                        callback(.success(info))
-                    } else {
-                        callback(.failure(
-                            .unknownError("Unable to find Java version \(javaVersion)")
-                        ))
-                    }
-                case .failure(let error):
-                    callback(.failure(error))
-            }
+        let info = try await self.getManifest(url: url).javaVersions.first { $0.version == javaVersion }
+        
+        if let info = info {
+            return info
+        } else {
+            throw CError.unknownError("Unable to find Java version \(javaVersion)")
         }
     }
 
-    public func downloadJava(url: URL, callback: @escaping (Result<URL, CError>) -> Void) {
+    public func downloadJava(url: URL) async throws -> URL {
         guard let version = self.version else {
-            callback(.failure(.stateError("\(#function) must not be called before `version` is set")))
-            return
+            throw CError.stateError("\(#function) must not be called before `version` is set")
         }
         
         let javaVersion = version.javaVersion?.majorVersion ?? 8
@@ -460,40 +378,35 @@ extension InstallationManager {
         let bundleDestinationURL = self.javaVersionDirectory()
             .appendingPathComponent("java-\(javaVersion).bundle")
         
-        javaVersionInfo(url: url) { infoResult in
-            switch infoResult {
-                case .success(let javaVersionInfo):
-                    guard let remoteURL = URL(string: javaVersionInfo.url) else {
-                        callback(.failure(.decodingError("Failed to convert \(javaVersionInfo.url) to URL")))
-                        break
-                    }
-                    let request = DownloadManager.DownloadRequest(taskName: "Java Runtime",
-                                                                  remoteURL: remoteURL,
-                                                                  destinationURL: temporaryDestinationURL,
-                                                                  size: javaVersionInfo.size,
-                                                                  sha1: javaVersionInfo.sha1)
-                    
-                    DownloadManager.shared.download(request) { result in
-                        print("Finished downloading the java runtime")
-                        do {
-                            if FileManager.default.fileExists(atPath: bundleDestinationURL.path) {
-                                try FileManager.default.removeItem(atPath: bundleDestinationURL.path)
-                            }
-                            
-                            try Zip.unzipFile(temporaryDestinationURL,
-                                              destination: bundleDestinationURL,
-                                              overwrite: true,
-                                              password: nil)
-                            
-                            self.javaBundle = bundleDestinationURL
-                            callback(.success(bundleDestinationURL))
-                        } catch (let error) {
-                            callback(.failure(.filesystemError("Failed to unzip Java runtime bundle: \(error.localizedDescription)")))
-                        }
-                    }
-                case .failure(let error):
-                    callback(.failure(error))
+        let javaVersionInfo = try await javaVersionInfo(url: url)
+
+        guard let remoteURL = URL(string: javaVersionInfo.url) else {
+            throw CError.decodingError("Failed to convert \(javaVersionInfo.url) to URL")
+        }
+        let request = DownloadManager.DownloadRequest(taskName: "Java Runtime",
+                                                      remoteURL: remoteURL,
+                                                      destinationURL: temporaryDestinationURL,
+                                                      size: javaVersionInfo.size,
+                                                      sha1: javaVersionInfo.sha1)
+        
+        let downloader = DownloadManager(request)
+        try await downloader.download()
+        
+        print("Finished downloading the java runtime")
+        do {
+            if FileManager.default.fileExists(atPath: bundleDestinationURL.path) {
+                try FileManager.default.removeItem(atPath: bundleDestinationURL.path)
             }
+            
+            try Zip.unzipFile(temporaryDestinationURL,
+                              destination: bundleDestinationURL,
+                              overwrite: true,
+                              password: nil)
+            
+            self.javaBundle = bundleDestinationURL
+            return bundleDestinationURL
+        } catch (let error) {
+            throw CError.filesystemError("Failed to unzip Java runtime bundle: \(error.localizedDescription)")
         }
     }
 }

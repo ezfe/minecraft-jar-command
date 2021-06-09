@@ -123,92 +123,85 @@ struct RunCommand: ParsableCommand {
         }
 
         // MARK: Version Info
-        var versionInfoResult: Result<VersionPackage, CError> = .failure(.unknownError("Callback never completed"))
         let group = DispatchGroup()
         
         if listVersions {
             group.enter()
             print("Finding available versions...")
-            installationManager.availableVersions(url: manifestUrl) { versionsResult in
-                switch versionsResult {
-                    case .success(let versions):
-                        print("Available versions:")
-                        for version in versions {
-                            print("\t\(version.id)")
-                        }
-                        group.leave()
-                        Main.exit()
-                    case .failure(let error):
-                        group.leave()
-                        Main.exit(withError: error)
+            async {
+                do {
+                    let versions = try await installationManager.availableVersions(url: manifestUrl)
+                    print("Available versions:")
+                    for version in versions {
+                        print("\t\(version.id)")
+                    }
+                    group.leave()
+                    Main.exit()
+                } catch let error {
+                    Main.exit(withError: error)
                 }
             }
         }
         
         group.enter()
-        installationManager.downloadVersionInfo(url: manifestUrl) { result in
-            versionInfoResult = result
-            group.leave()
+        async {
+            do {
+                let versionInfo = try await installationManager.downloadVersionInfo(url: manifestUrl)
+                guard versionInfo.minimumLauncherVersion >= 21 else {
+                    print("Unfortunately, \(versionInfo.id) isn't available from this utility")
+                    print("This utility is only tested with the latest version, and does not work with versions prior to 1.13")
+                    group.leave() //?
+                    Main.exit()
+                }
+                
+                group.leave() //?
+            } catch let err {
+                Main.exit(withError: err)
+            }
         }
         group.wait()
-        let versionInfo: VersionPackage
-        switch versionInfoResult {
-            case .success(let package):
-                versionInfo = package
-            case .failure(let error):
-                Main.exit(withError: error)
-        }
         
-        guard versionInfo.minimumLauncherVersion >= 21 else {
-            print("Unfortunately, \(versionInfo.id) isn't available from this utility")
-            print("This utility is only tested with the latest version, and does not work with versions prior to 1.13")
-            Main.exit()
-        }
         
         group.enter()
-        installationManager.downloadJar { result in
-            switch result {
-                case .failure(let error):
-                    Main.exit(withError: error)
-                default:
-                    break
-            }
-            group.leave()
-        }
-        
-        group.enter()
-        installationManager.downloadJava(url: manifestUrl) { result in
-            switch result {
-                case .failure(let error):
-                    Main.exit(withError: error)
-                default:
-                    break
+        async {
+            do {
+                try await installationManager.downloadJar()
+            } catch let err {
+                Main.exit(withError: err)
             }
             group.leave()
         }
 
         group.enter()
-        installationManager.downloadAssets { result in
-            switch result {
-                case .failure(let error):
-                    Main.exit(withError: error)
-                default:
-                    break                    
+        async {
+            do {
+                let _ = try await installationManager.downloadJava(url: manifestUrl)
+            } catch let err {
+                Main.exit(withError: err)
             }
             group.leave()
         }
-        
+
         group.enter()
-        installationManager.downloadLibraries { result in
-            switch result {
-                case .failure(let error):
-                    Main.exit(withError: error)
-                default:
-                    break
+        async {
+            do {
+                let _ = try await installationManager.downloadAssets()
+            } catch let err {
+                Main.exit(withError: err)
             }
             group.leave()
         }
-        
+
+        group.enter()
+        async {
+            do {
+                let _ = try await installationManager.downloadLibraries()
+            } catch let err {
+                Main.exit(withError: err)
+            }
+            group.leave()
+        }
+
         print("Queued up downloads")
         group.wait()
         

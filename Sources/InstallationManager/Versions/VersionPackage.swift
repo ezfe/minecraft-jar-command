@@ -31,17 +31,17 @@ public struct VersionPackage: Codable {
     
     public let javaVersion: JavaVersion?
     
-    static func decode(from data: Data) -> Result<VersionPackage, CError> {
+    static func decode(from data: Data) throws -> VersionPackage {
         let jsonDecoder = JSONDecoder()
         jsonDecoder.keyDecodingStrategy = .convertFromSnakeCase
         jsonDecoder.dateDecodingStrategy = .iso8601
 
         do {
             let versionInfo = try jsonDecoder.decode(VersionPackage.self, from: data)
-            return .success(versionInfo)
+            return versionInfo
         } catch let error {
             print(error)
-            return .failure(.decodingError(error.localizedDescription))
+            throw CError.decodingError(error.localizedDescription)
         }
     }
 }
