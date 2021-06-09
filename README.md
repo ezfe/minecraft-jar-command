@@ -18,13 +18,15 @@ This package does not have a visual interface and must be run from the command l
 Tips:
 1. You can change the game version - the latest release version will be used by default. Only some versions are available, you can view the complete list [here](https://f001.backblazeb2.com/file/com-ezekielelin-publicFiles/lwjgl-arm/version_manifest_v2.json).
    ```
-   minecraft-jar-command run --version "21w05b-arm64"
+   minecraft-jar-command run --version "21w17a-arm64"
    ```
 2. To get the latest snapshot version, run it with the `--snapshot` flag:
    ```
    minecraft-jar-command run --snapshot
    ```
 3. You can change the game directory and working directory (where the supporting assets are downloaded). Right now, the game directory is set to the default Minecraft directory, and the working directory defaults to a temporary one to prevent interference with the default Minecraft launcher. Refer to `minecraft-jar-command help run` to see these commands.
+
+Important: Minecraft snapshots 21w18a and later are not available. Unfortunately, Java 16 is not yet working and I have not yet identified a fix.
 
 ## Updates
 
