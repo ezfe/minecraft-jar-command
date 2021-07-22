@@ -1,4 +1,9 @@
 # Apple M1 Minecraft Launcher
+---
+
+For Minecraft 1.17.1, read these directions: https://gist.github.com/ezfe/965f8f2b2d60931615a251d4b786df4c
+
+---
 
 Download and run Minecraft without the Launcher.
 
