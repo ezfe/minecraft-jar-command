@@ -1,4 +1,15 @@
 # Apple M1 Minecraft Launcher
+---
+
+For Minecraft 1.17.1, run the following command:
+
+```sh
+minecraft-jar-command --version 1.17.1-arm64 --java-executable /Library/Java/JavaVirtualMachines/arm-zulu-16.jre/Contents/Home/bin/java
+```
+
+With the path pointing to an ARM-native Java 16 runtime or JDK. In my case, I used the Azul Java 16 ARM JRE for macOS.
+
+---
 
 Download and run Minecraft without the Launcher.
 
