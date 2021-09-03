@@ -14,6 +14,8 @@ public enum CError: Error {
     case decodingError(String)
     case filesystemError(String)
     case stateError(String)
+    /// Expected, Found
+    case sha1Error(String, String)
     case unknownVersion(String)
     case unknownError(String)
     
@@ -31,6 +33,8 @@ public enum CError: Error {
                 return "Filesystem Error: \(s)"
             case .stateError(let s):
                 return "State Error: \(s)"
+            case .sha1Error(let e, let f):
+                return "Sha1 Error: Expected \(e) but found \(f)"
             case .unknownVersion(let version):
                 return "\(version) is not a valid Minecraft version"
             case .unknownError(let s):

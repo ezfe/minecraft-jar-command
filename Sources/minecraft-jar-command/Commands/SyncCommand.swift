@@ -45,46 +45,106 @@ struct SyncCommand: ParsableCommand {
             to: bucket,
             using: authorization,
             versionId: package.id,
-            jarName: "client.jar")
+            path: "downloads/client.jar")
 
         async let modifiedServer = try await reuploadDownload(
             package.downloads.server,
             to: bucket,
             using: authorization,
             versionId: package.id,
-            jarName: "server.jar")
+            path: "downloads/server.jar")
         
         modifiedPackage.downloads.client = try await modifiedClient
         modifiedPackage.downloads.server = try await modifiedServer
         
         // MARK: Libraries
-        for lib in package.libraries {
-            lib
+        modifiedPackage.libraries.removeAll()
+        for library in package.libraries {
+            var modifiedLibrary = library
+
+            let artifactPath = "libraries/\(library.downloads.artifact.path)"
+            let modifiedArtifact = try await reuploadDownload(library.downloads.artifact,
+                                                              to: bucket,
+                                                              using: authorization,
+                                                              versionId: "common",
+                                                              path: artifactPath)
+            modifiedLibrary.downloads.artifact = modifiedArtifact
+
+            if let classifiers = modifiedLibrary.downloads.classifiers {
+                var modifiedClassifiers = classifiers
+                for (classifierKey, classifierArtifact) in classifiers {
+                    let classifierArtifactPath = "natives/\(classifierArtifact.path)"
+                    let modifiedArtifact = try await reuploadDownload(classifierArtifact,
+                                                                      to: bucket,
+                                                                      using: authorization,
+                                                                      versionId: "common",
+                                                                      path: classifierArtifactPath)
+
+                    modifiedClassifiers[classifierKey] = modifiedArtifact
+                }
+                modifiedLibrary.downloads.classifiers = modifiedClassifiers
+            }
+
+            modifiedPackage.libraries.append(modifiedLibrary)
         }
+        
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let packageData = try encoder.encode(modifiedPackage)
+        
+        let packageFileName = "\(package.id)/\(package.id).json"
+        let uploadResult = try await UploadFile.exec(authorization: authorization,
+                        bucket: bucket,
+                        fileName: packageFileName,
+                        contentType: "application/json",
+                        data: packageData)
+        
+        print("Finished uploading version data")
+        print("Filename: \(uploadResult.fileName)")
+        print("SHA1: \(uploadResult.contentSha1)")
+        print("Size: \(uploadResult.contentLength)")
     }
 }
 
-func reuploadDownload(_ download: VersionPackage.Downloads.Download,
-                      to bucket: ListBuckets.Response.Bucket,
-                      using authorization: AuthorizeAccount.Response,
-                      versionId: String,
-                      jarName: String) async throws -> VersionPackage.Downloads.Download {
+func reuploadDownload<Obj: Downloadable>(_ obj: Obj,
+                                         to bucket: ListBuckets.Response.Bucket,
+                                         using authorization: AuthorizeAccount.Response,
+                                         versionId: String,
+                                         path: String) async throws -> Obj {
     
-    let originalUrl = download.url
-    let (data, _) = try await URLSession.shared.data(from: URL(string: originalUrl)!)
-    let fileName = "\(versionId)/downloads/\(jarName)"
-    let uploadInfo = try await UploadFile.exec(authorization: authorization,
-                                               bucket: bucket,
-                                               fileName: fileName,
-                                               contentType: "application/java-archive",
-                                               data: data)
+    let data = try await obj.download()
+    let sha1 = data.sha1()
+
+    let fileName = "\(versionId)/\(path)"
     
-    let newUrl = "\(authorization.downloadUrl)/file/\(bucket.bucketName)/\(uploadInfo.fileName)"
+    // TODO: Class C TXN
+    let searchResult = try await ListFileNames
+        .exec(authorization: authorization,
+              bucket: bucket,
+              prefix: fileName)
+        .files
+        .filter({ $0.fileName == fileName })
+        .filter({ $0.contentSha1 == sha1 })
+        .filter({ $0.contentLength == data.count })
+        .first
+    
+    let fileInfo: UploadFile.Response
+    if let searchResult = searchResult {
+        print("Found existing file with correct name and sha1")
+        fileInfo = searchResult
+    } else {
+        print("Uploading file to Backblaze")
+        fileInfo = try await UploadFile.exec(authorization: authorization,
+                                                   bucket: bucket,
+                                                   fileName: fileName,
+                                                   contentType: "application/java-archive",
+                                                   data: data)
+    }
 
-    var modifiedDownload = download
-    modifiedDownload.url = newUrl
-    modifiedDownload.sha1 = uploadInfo.contentSha1
-    modifiedDownload.size = uploadInfo.contentLength
+    let newUrl = "\(authorization.downloadUrl)/file/\(bucket.bucketName)/\(fileInfo.fileName)"
 
-    return modifiedDownload
+    var modified = obj
+    modified.url = newUrl
+
+    return modified
 }

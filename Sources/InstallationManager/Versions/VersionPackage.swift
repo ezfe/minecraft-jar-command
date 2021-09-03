@@ -27,7 +27,7 @@ public struct VersionPackage: Codable {
     let assetIndex: AssetIndex
     public let assets: String
     public var downloads: Downloads
-    public let libraries: [Library]
+    public var libraries: [Library]
     let logging: Logging
     
     public let javaVersion: JavaVersion?
@@ -148,12 +148,12 @@ extension VersionPackage {
 // MARK:- Asset Index
 
 extension VersionPackage {
-    struct AssetIndex: Codable {
+    struct AssetIndex: Codable, Downloadable {
         let id: String
         let sha1: String
         let size: UInt
         let totalSize: UInt
-        let url: String
+        var url: String
     }
 }
 
@@ -166,9 +166,9 @@ extension VersionPackage {
         public var server: Download
         public var serverMappings: Download?
         
-        public struct Download: Codable {
-            public var sha1: String
-            public var size: UInt
+        public struct Download: Codable, Downloadable {
+            public let sha1: String
+            public let size: UInt
             public var url: String
         }
     }
@@ -183,11 +183,11 @@ extension VersionPackage {
         public let natives: Natives?
         public let rules: [Rule]?
         
-        struct Download: Codable {
+        public struct Download: Codable {
             public var artifact: Artifact
             public var classifiers: [String: Artifact]?
             
-            struct Artifact: Codable {
+            public struct Artifact: Codable, Downloadable {
                 public var path: String
                 public var sha1: String
                 public var size: UInt
@@ -195,7 +195,7 @@ extension VersionPackage {
             }
         }
 
-        struct Natives: Codable {
+        public struct Natives: Codable {
             let linux: String?
             let osx: String?
             let windows: String?
@@ -214,11 +214,11 @@ extension VersionPackage {
             let file: File
             let type: String
             
-            struct File: Codable {
+            struct File: Codable, Downloadable {
                 let id: String
                 let sha1: String
                 let size: UInt
-                let url: String
+                var url: String
             }
         }
     }

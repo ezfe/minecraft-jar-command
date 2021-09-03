@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import Crypto
+import Common
 
 public struct AuthorizeAccount {
     public static func exec(applicationKeyId: String, applicationKey: String) async throws -> Response {
@@ -117,6 +117,52 @@ struct GetUploadUrl {
     }
 }
 
+public struct ListFileNames {
+    public static func exec(authorization: AuthorizeAccount.Response,
+                     bucket: ListBuckets.Response.Bucket,
+                     startFileName: String? = nil,
+                     maxFileCount: UInt? = 1_000,
+                     prefix: String? = nil) async throws -> Response {
+
+        let url = URL(string: "\(authorization.apiUrl)/b2api/v2/b2_list_file_names")!
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue(
+            authorization.authorizationToken,
+            forHTTPHeaderField: "Authorization"
+        )
+
+        let encoder = JSONEncoder()
+        let body = Request(bucketId: bucket.bucketId,
+                           startFileName: startFileName,
+                           maxFileCount: maxFileCount,
+                           prefix: prefix,
+                           delimiter: nil)
+        request.httpBody = try encoder.encode(body)
+        
+        let (data, _) = try await URLSession.shared.data(for: request)
+        
+        let decoder = JSONDecoder()
+        let decoded = try decoder.decode(Response.self, from: data)
+        
+        return decoded
+    }
+
+    struct Request: Encodable {
+        let bucketId: String
+        let startFileName: String?
+        let maxFileCount: UInt?
+        let prefix: String?
+        let delimiter: String?
+    }
+
+    public struct Response: Decodable {
+        public let files: [UploadFile.Response]
+        public let nextFileName: String?
+    }
+}
+
 public struct UploadFile {
     public static func exec(authorization: AuthorizeAccount.Response,
                             bucket: ListBuckets.Response.Bucket,
@@ -128,8 +174,6 @@ public struct UploadFile {
         
         let url = URL(string: uploadInfo.uploadUrl)!
         
-        let shaDigest = Insecure.SHA1.hash(data: data).compactMap { String(format: "%02x", $0) }.joined()
-        
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue(
@@ -139,7 +183,7 @@ public struct UploadFile {
         request.addValue(fileName, forHTTPHeaderField: "X-Bz-File-Name")
         request.addValue(contentType, forHTTPHeaderField: "Content-Type")
         request.addValue(data.count.description, forHTTPHeaderField: "Content-Length")
-        request.addValue(shaDigest, forHTTPHeaderField: "X-Bz-Content-Sha1")
+        request.addValue(data.sha1(), forHTTPHeaderField: "X-Bz-Content-Sha1")
 
         request.httpBody = data
         
@@ -153,6 +197,7 @@ public struct UploadFile {
 
     public struct Response: Decodable {
         public let accountId: String
+        public let action: String
         public let bucketId: String
         public let contentLength: UInt
         public let contentSha1: String
