@@ -22,9 +22,6 @@ struct ArmPatchCommand: ParsableCommand {
     var shaSum = false
     
     mutating func run() throws {
-        let mojangManifest = URL(string: "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")!
-        let armManifest = URL(string: "https://f001.backblazeb2.com/file/com-ezekielelin-publicFiles/lwjgl-arm/version_manifest_v2.json")!
-
         let mojangManager = try InstallationManager()
         mojangManager.use(version: .snapshot)
         
@@ -35,9 +32,9 @@ struct ArmPatchCommand: ParsableCommand {
         
         let group = DispatchGroup()
         group.enter()
-        async {
-            let mojangVersion = try await mojangManager.downloadVersionInfo(url: mojangManifest)
-            let armVersion = try await customManager.downloadVersionInfo(url: armManifest)
+        Task.init {
+            let mojangVersion = try await mojangManager.downloadVersionInfo(url: .mojang)
+            let armVersion = try await customManager.downloadVersionInfo(url: .legacyCustom)
 
             var newVersion = armVersion
             

@@ -8,6 +8,7 @@
 import Foundation
 import MojangRules
 import Common
+import ArgumentParser
 
 /**
  * A file that describes a specific Minecraft version, and includes information
@@ -26,12 +27,12 @@ public struct VersionPackage: Codable {
     let assetIndex: AssetIndex
     public let assets: String
     public var downloads: Downloads
-    let libraries: [Library]
+    public let libraries: [Library]
     let logging: Logging
     
     public let javaVersion: JavaVersion?
     
-    static func decode(from data: Data) throws -> VersionPackage {
+    public static func decode(from data: Data) throws -> VersionPackage {
         let jsonDecoder = JSONDecoder()
         jsonDecoder.keyDecodingStrategy = .convertFromSnakeCase
         jsonDecoder.dateDecodingStrategy = .iso8601
@@ -160,15 +161,15 @@ extension VersionPackage {
 
 extension VersionPackage {
     public struct Downloads: Codable {
-        let client: Download
-        let clientMappings: Download?
-        let server: Download
-        let serverMappings: Download?
+        public var client: Download
+        public var clientMappings: Download?
+        public var server: Download
+        public var serverMappings: Download?
         
-        struct Download: Codable {
-            let sha1: String
-            let size: UInt
-            let url: String
+        public struct Download: Codable {
+            public var sha1: String
+            public var size: UInt
+            public var url: String
         }
     }
 }
@@ -176,21 +177,21 @@ extension VersionPackage {
 // MARK:- Library
 
 extension VersionPackage {
-    struct Library: Codable {
-        let name: String
-        let downloads: Download
-        let natives: Natives?
-        let rules: [Rule]?
+    public struct Library: Codable {
+        public let name: String
+        public var downloads: Download
+        public let natives: Natives?
+        public let rules: [Rule]?
         
         struct Download: Codable {
-            let artifact: Artifact
-            let classifiers: [String: Artifact]?
+            public var artifact: Artifact
+            public var classifiers: [String: Artifact]?
             
             struct Artifact: Codable {
-                let path: String
-                let sha1: String
-                let size: UInt
-                let url: String
+                public var path: String
+                public var sha1: String
+                public var size: UInt
+                public var url: String
             }
         }
 

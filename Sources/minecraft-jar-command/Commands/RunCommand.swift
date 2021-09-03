@@ -68,24 +68,24 @@ struct RunCommand: ParsableCommand {
     var clientToken: String
      */
     
-    mutating func run() throws {
+    mutating func run() async throws {
 //        if !FileManager.default.fileExists(atPath: javaExecutable) {
 //            print("You must install Java 8")
 //            print("Recommended: Azul Zulu Java 8 LTS")
 //            print("https://www.azul.com/downloads/?version=java-8-lts&os=macos&architecture=arm-64-bit&package=jdk")
 //            print("Expected Java location: \(javaExecutable)")
-//            Main.exit()
+//            MainCommand.exit()
 //        }
         
         let defaults = UserDefaults.standard
         
         guard let accessToken = defaults.string(forKey: "accessToken") else {
             print("Please run the login command with the --save-credentials flag to save a new access token")
-            Main.exit()
+            MainCommand.exit()
         }
         guard let clientToken = defaults.string(forKey: "clientToken") else {
             print("Please run the login command with the --save-credentials flag to save a new client token")
-            Main.exit()
+            MainCommand.exit()
         }
         
         let auth = try AuthenticationManager.refresh(accessToken: accessToken, clientToken: clientToken)
@@ -93,11 +93,11 @@ struct RunCommand: ParsableCommand {
         defaults.set(auth.clientToken, forKey: "clientToken")
         defaults.set(auth.accessToken, forKey: "accessToken")
 
-        let manifestUrl: URL
+        let manifestUrl: VersionManifest.ManifestUrls
         if mojangManifest {
-            manifestUrl = URL(string: "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")!
+            manifestUrl = .mojang
         } else {
-            manifestUrl = URL(string: "https://f001.backblazeb2.com/file/com-ezekielelin-publicFiles/lwjgl-arm/version_manifest_v2.json")!
+            manifestUrl = .legacyCustom
         }
 
         
@@ -121,89 +121,35 @@ struct RunCommand: ParsableCommand {
         } else {
             installationManager.use(version: .release)
         }
-
-        // MARK: Version Info
-        let group = DispatchGroup()
         
-        if listVersions {
-            group.enter()
-            print("Finding available versions...")
-            async {
-                do {
-                    let versions = try await installationManager.availableVersions(url: manifestUrl)
-                    print("Available versions:")
-                    for version in versions {
-                        print("\t\(version.id)")
-                    }
-                    group.leave()
-                    Main.exit()
-                } catch let error {
-                    Main.exit(withError: error)
+        do {
+            // MARK: Version Info
+            if listVersions {
+                print("Finding available versions...")
+                let versions = try await installationManager.availableVersions(url: manifestUrl)
+                print("Available versions:")
+                for version in versions {
+                    print("\t\(version.id)")
                 }
+                MainCommand.exit()
             }
-        }
-        
-        group.enter()
-        async {
-            do {
-                let versionInfo = try await installationManager.downloadVersionInfo(url: manifestUrl)
-                guard versionInfo.minimumLauncherVersion >= 21 else {
-                    print("Unfortunately, \(versionInfo.id) isn't available from this utility")
-                    print("This utility is only tested with the latest version, and does not work with versions prior to 1.13")
-                    group.leave() //?
-                    Main.exit()
-                }
-                
-                group.leave() //?
-            } catch let err {
-                Main.exit(withError: err)
+            
+            let versionInfo = try await installationManager.downloadVersionInfo(url: manifestUrl)
+            guard versionInfo.minimumLauncherVersion >= 21 else {
+                print("Unfortunately, \(versionInfo.id) isn't available from this utility")
+                print("This utility is only tested with the latest version, and does not work with versions prior to 1.13")
+                MainCommand.exit()
             }
-        }
-        group.wait()
-        
-        
-        group.enter()
-        async {
-            do {
-                try await installationManager.downloadJar()
-            } catch let err {
-                Main.exit(withError: err)
-            }
-            group.leave()
-        }
 
-        group.enter()
-        async {
-            do {
-                let _ = try await installationManager.downloadJava(url: manifestUrl)
-            } catch let err {
-                Main.exit(withError: err)
-            }
-            group.leave()
-        }
-
-        group.enter()
-        async {
-            do {
-                let _ = try await installationManager.downloadAssets()
-            } catch let err {
-                Main.exit(withError: err)
-            }
-            group.leave()
-        }
-
-        group.enter()
-        async {
-            do {
-                let _ = try await installationManager.downloadLibraries()
-            } catch let err {
-                Main.exit(withError: err)
-            }
-            group.leave()
+            try await installationManager.downloadJar()
+            async let _ = try await installationManager.downloadJava(url: manifestUrl)
+            async let _ = try await installationManager.downloadAssets()
+            async let _ = try await installationManager.downloadLibraries()
+        } catch let err {
+            MainCommand.exit(withError: err)
         }
 
         print("Queued up downloads")
-        group.wait()
         
         try installationManager.copyNatives()
         
@@ -228,7 +174,7 @@ struct RunCommand: ParsableCommand {
 
                 proc.waitUntilExit()
             case .failure(let error):
-                Main.exit(withError: error)
+                MainCommand.exit(withError: error)
         }
         
     }

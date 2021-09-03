@@ -9,11 +9,11 @@ import Foundation
 import Common
 import MojangRules
 
-func buildAssetRequest(name: String, hash: String, size: UInt, installationManager: InstallationManager) -> Result<DownloadManager.DownloadRequest, CError> {
+func buildAssetRequest(name: String, hash: String, size: UInt, installationManager: InstallationManager) throws -> DownloadManager.DownloadRequest {
     let prefix = hash.prefix(2)
 
     guard let downloadURL = URL(string: "https://resources.download.minecraft.net/\(prefix)/\(hash)") else {
-        return .failure(CError.encodingError("Failed to build URL for \(name)"))
+        throw CError.encodingError("Failed to build URL for \(name)")
     }
 
     let destinationURL = installationManager.assetsObjectsDirectory.appendingPathComponent("\(prefix)/\(hash)")
@@ -24,7 +24,7 @@ func buildAssetRequest(name: String, hash: String, size: UInt, installationManag
                                                   size: size,
                                                   sha1: hash,
                                                   verbose: false)
-    return .success(request)
+    return request
 }
 
 func applyVariableReplacement(source: String, parameters: [String: String]) -> String {

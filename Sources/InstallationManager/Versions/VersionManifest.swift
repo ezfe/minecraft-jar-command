@@ -9,10 +9,10 @@ import Foundation
 import Common
 
 public struct VersionManifest: Decodable {
-    let latest: Latest
-    let versions: [VersionMetadata]
-    let javaVersions: [JavaVersionInfo]
-
+    public let latest: Latest
+    public let versions: [VersionMetadata]
+    let javaVersions: [JavaVersionInfo]?
+    
     public struct VersionMetadata: Decodable {
         public let id: String
         let type: String
@@ -20,7 +20,7 @@ public struct VersionManifest: Decodable {
         let time: Date
         let releaseTime: Date
     }
-
+    
     public struct Latest: Decodable {
         let release: String
         let snapshot: String
@@ -37,17 +37,26 @@ public struct VersionManifest: Decodable {
 // MARK: Download Manifest
 
 public extension VersionManifest {
-    static func downloadManifest(url: URL) async throws -> VersionManifest {
+    enum ManifestUrls: String {
+        case mojang = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
+        case legacyCustom = "https://f001.backblazeb2.com/file/com-ezekielelin-publicFiles/lwjgl-arm/version_manifest_v2.json"
+    }
+    
+    static func downloadManifest(url: ManifestUrls) async throws -> VersionManifest {
+        let url = URL(string: url.rawValue)!
         let manifestData = try await retrieveData(url: url)
         
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         
-        guard let manifest = try? decoder.decode(VersionManifest.self, from: manifestData) else {
+        do {
+            let manifest = try decoder.decode(VersionManifest.self, from: manifestData)
+            return manifest
+            
+        } catch let error {
+            print(error)
             throw CError.decodingError("Failed to decode Version Manifest")
         }
-    
-        return manifest
     }
 }
 
@@ -60,7 +69,7 @@ public extension VersionManifest {
         case custom(String)
     }
     
-    func get(version: VersionType) throws -> VersionManifest.VersionMetadata {
+    func get(version: VersionType) -> VersionManifest.VersionMetadata? {
         let versionString: String
         switch version {
             case .release:
@@ -71,15 +80,9 @@ public extension VersionManifest {
                 versionString = customString
         }
         
-        let versionManifestEntry = self.versions.first(where: { (versionEntry) in
+        return self.versions.first(where: { (versionEntry) in
             return versionEntry.id == versionString
         })
-        
-        if let versionManifestEntry = versionManifestEntry {
-            return versionManifestEntry
-        } else {
-            throw CError.unknownVersion(versionString)
-        }
     }
-
+    
 }

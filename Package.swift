@@ -18,7 +18,7 @@ let package = Package(
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
-        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "0.3.1"),
+        .package(url: "https://github.com/ezfe/swift-argument-parser.git", .branch("async")),
         .package(url: "https://github.com/apple/swift-crypto.git", from: "1.1.2"),
         .package(url: "https://github.com/marmelroy/Zip.git", from: "2.1.0")
     ],
@@ -30,7 +30,8 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .target(name: "MojangAuthentication"),
-                .target(name: "InstallationManager")
+                .target(name: "InstallationManager"),
+                .target(name: "Backblaze")
             ]
         ),
         .target(
@@ -52,6 +53,12 @@ let package = Package(
             name: "MojangRules",
             dependencies: [
 
+            ]
+        ),
+        .target(
+            name: "Backblaze",
+            dependencies: [
+            
             ]
         ),
         .target(

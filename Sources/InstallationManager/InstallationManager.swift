@@ -26,7 +26,7 @@ public class InstallationManager {
     
     // MARK: Installation State
     public private(set) var versionRequested: VersionManifest.VersionType = .release
-    public private(set) var manifests: [URL: VersionManifest] = [:]
+    public private(set) var manifests: [VersionManifest.ManifestUrls: VersionManifest] = [:]
     public private(set) var version: VersionPackage? = nil
     public private(set) var jar: URL? = nil
     public private(set) var javaBundle: URL? = nil
@@ -78,7 +78,7 @@ extension InstallationManager {
         return URL(fileURLWithPath: "versions/\(version)", relativeTo: self.baseDirectory)
     }
     
-    func getManifest(url: URL) async throws -> VersionManifest {
+    func getManifest(url: VersionManifest.ManifestUrls) async throws -> VersionManifest {
         if let manifest = self.manifests[url] {
             return manifest
         } else {
@@ -88,7 +88,7 @@ extension InstallationManager {
         }
     }
     
-    public func availableVersions(url: URL) async throws -> [VersionManifest.VersionMetadata] {
+    public func availableVersions(url: VersionManifest.ManifestUrls) async throws -> [VersionManifest.VersionMetadata] {
         return try await self.getManifest(url: url).versions
     }
 
@@ -96,7 +96,7 @@ extension InstallationManager {
         self.versionRequested = version
     }
     
-    public func downloadVersionInfo(url: URL) async throws -> VersionPackage {
+    public func downloadVersionInfo(url: VersionManifest.ManifestUrls) async throws -> VersionPackage {
         let fm = FileManager.default
 
         // Check if the file exists on the local file system, and if it does
@@ -134,7 +134,9 @@ extension InstallationManager {
         // If we haven't aborted at this point, then no file already exists, or one
         // did and has been removed in the meantime.
         let manifest = try await self.getManifest(url: url)
-        let entry = try manifest.get(version: self.versionRequested)
+        guard let entry = manifest.get(version: self.versionRequested) else {
+            throw CError.unknownVersion("\(self.versionRequested)")
+        }
         
         let versionData = try await retrieveData(url: entry.url)
         
@@ -329,13 +331,7 @@ extension InstallationManager {
         
         let downloadRequests: [DownloadManager.DownloadRequest]
         downloadRequests = try index.objects.map { (name, metadata) in
-            let res = buildAssetRequest(name: name, hash: metadata.hash, size: metadata.size, installationManager: self)
-            switch res {
-            case .success(let request):
-                return request
-            case .failure(let error):
-                throw error
-            }
+            try buildAssetRequest(name: name, hash: metadata.hash, size: metadata.size, installationManager: self)
         }
         
         let downloader = DownloadManager(downloadRequests, named: "Asset Collection")
@@ -349,14 +345,15 @@ extension InstallationManager {
         return URL(fileURLWithPath: "runtimes", relativeTo: self.baseDirectory)
     }
     
-    func javaVersionInfo(url: URL) async throws -> VersionManifest.JavaVersionInfo {
+    func javaVersionInfo(url: VersionManifest.ManifestUrls) async throws -> VersionManifest.JavaVersionInfo {
         guard let version = self.version else {
             throw CError.stateError("\(#function) must not be called before `version` is set")
         }
         
         let javaVersion = version.javaVersion?.majorVersion ?? 8
         
-        let info = try await self.getManifest(url: url).javaVersions.first { $0.version == javaVersion }
+        let versions = try await self.getManifest(url: url).javaVersions ?? []
+        let info = versions.first { $0.version == javaVersion }
         
         if let info = info {
             return info
@@ -365,7 +362,7 @@ extension InstallationManager {
         }
     }
 
-    public func downloadJava(url: URL) async throws -> URL {
+    public func downloadJava(url: VersionManifest.ManifestUrls) async throws -> URL {
         guard let version = self.version else {
             throw CError.stateError("\(#function) must not be called before `version` is set")
         }
