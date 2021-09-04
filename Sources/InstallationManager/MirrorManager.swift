@@ -19,10 +19,10 @@ public struct MirrorRequest<Element: Downloadable> {
         self.targetName = targetName
         self.fileType = fileType
     }
-
+    
     public func process(with authorization: AuthorizeAccount.Response,
-                 to bucket: ListBuckets.Response.Bucket,
-                 existingFiles: [UploadFile.Response]) async throws -> Element {
+                        to bucket: ListBuckets.Response.Bucket,
+                        existingFiles: [UploadFile.Response]) async throws -> Element {
         
         let searchResult = existingFiles.first(where: { file in
             return file.fileName == self.targetName && file.contentSha1 == self.source.sha1
