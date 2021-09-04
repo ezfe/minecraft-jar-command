@@ -23,8 +23,6 @@ public struct MirrorRequest<Element: Downloadable> {
     public func process(with authorization: AuthorizeAccount.Response,
                  to bucket: ListBuckets.Response.Bucket,
                  existingFiles: [UploadFile.Response]) async throws -> Element {
-
-        let data = try await self.source.download()
         
         let searchResult = existingFiles.first(where: { file in
             return file.fileName == self.targetName && file.contentSha1 == self.source.sha1
@@ -35,6 +33,8 @@ public struct MirrorRequest<Element: Downloadable> {
             print("Found existing file with correct name and sha1")
             fileInfo = searchResult
         } else {
+            print("Downloading file to reupload to Backblaze")
+            let data = try await self.source.download()
             print("Uploading file to Backblaze")
             fileInfo = try await UploadFile.exec(authorization: authorization,
                                                  bucket: bucket,
