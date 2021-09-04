@@ -24,7 +24,7 @@ public struct VersionPackage: Codable {
     let type: ReleaseType
 
     public let arguments: Arguments
-    let assetIndex: AssetIndex
+    public var assetIndex: AssetIndex
     public let assets: String
     public var downloads: Downloads
     public var libraries: [Library]
@@ -148,12 +148,12 @@ extension VersionPackage {
 // MARK:- Asset Index
 
 extension VersionPackage {
-    struct AssetIndex: Codable, Downloadable {
+    public struct AssetIndex: Codable, Downloadable, URLModifiable {
         let id: String
-        let sha1: String
-        let size: UInt
+        public var sha1: String
+        public var size: UInt
         let totalSize: UInt
-        var url: String
+        public var url: String
     }
 }
 
@@ -166,7 +166,7 @@ extension VersionPackage {
         public var server: Download
         public var serverMappings: Download
         
-        public struct Download: Codable, Downloadable {
+        public struct Download: Codable, Downloadable, URLModifiable {
             public let sha1: String
             public let size: UInt
             public var url: String
@@ -187,10 +187,10 @@ extension VersionPackage {
             public var artifact: Artifact
             public var classifiers: [String: Artifact]?
             
-            public struct Artifact: Codable, Downloadable {
-                public var path: String
-                public var sha1: String
-                public var size: UInt
+            public struct Artifact: Codable, Downloadable, URLModifiable {
+                public let path: String
+                public let sha1: String
+                public let size: UInt
                 public var url: String
             }
         }
@@ -214,7 +214,7 @@ extension VersionPackage {
             let file: File
             let type: String
             
-            struct File: Codable, Downloadable {
+            struct File: Codable, Downloadable, URLModifiable {
                 let id: String
                 let sha1: String
                 let size: UInt

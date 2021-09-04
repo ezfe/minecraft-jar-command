@@ -29,7 +29,8 @@ public struct RuleProcessor {
      *   - rules: The list of clauses in the rule
      * - Returns: A boolean indicating whether the rules passed (`true`) or not (`false`)
      */
-    public static func verifyRulesPass(_ clauses: [Rule], with enabledFeatures: FeatureSet) -> Bool {
+    public static func verifyRulesPass(_ clauses: [Rule]?, with enabledFeatures: FeatureSet) -> Bool {
+        guard let clauses = clauses else { return true }
         if clauses.isEmpty { return true }
         
         var ruleFailure = true

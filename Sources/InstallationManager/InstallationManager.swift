@@ -330,8 +330,18 @@ extension InstallationManager {
         }
         
         let downloadRequests: [DownloadManager.DownloadRequest]
-        downloadRequests = try index.objects.map { (name, metadata) in
-            try buildAssetRequest(name: name, hash: metadata.hash, size: metadata.size, installationManager: self)
+        downloadRequests = index.objects.map { (name, metadata) in
+            let destinationURL = self.assetsObjectsDirectory
+                .appendingPathComponent("\(metadata.sha1.prefix(2))/\(metadata.sha1)")
+
+            let request = DownloadManager.DownloadRequest(taskName: "Asset \(name)",
+                                                          remoteURL: URL(string: metadata.url)!,
+                                                          destinationURL: destinationURL,
+                                                          size: metadata.size,
+                                                          sha1: metadata.sha1,
+                                                          verbose: false)
+
+            return request
         }
         
         let downloader = DownloadManager(downloadRequests, named: "Asset Collection")

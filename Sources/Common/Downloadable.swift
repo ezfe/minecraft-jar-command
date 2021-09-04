@@ -8,8 +8,12 @@
 import Foundation
 
 public protocol Downloadable {
-    var url: String { get set }
+    var url: String { get }
     var sha1: String { get }
+}
+
+public protocol URLModifiable {
+    var url: String { get set }
 }
 
 public extension Downloadable {
