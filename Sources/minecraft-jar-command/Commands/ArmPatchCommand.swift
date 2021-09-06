@@ -33,8 +33,8 @@ struct ArmPatchCommand: ParsableCommand {
         let group = DispatchGroup()
         group.enter()
         Task.init {
-            let mojangVersion = try await mojangManager.downloadVersionInfo(url: .mojang)
-            let armVersion = try await customManager.downloadVersionInfo(url: .legacyCustom)
+            let mojangVersion = try await mojangManager.downloadVersionInfo(.mojang)
+            let armVersion = try await customManager.downloadVersionInfo(.legacyCustom)
 
             var newVersion = armVersion
             

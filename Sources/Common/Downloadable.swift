@@ -12,12 +12,12 @@ public protocol Downloadable {
     var sha1: String { get }
 }
 
-public protocol URLModifiable {
+public protocol DownloadableModifiable: Downloadable {
     var url: String { get set }
 }
 
 public extension Downloadable {
-    func download() async throws -> Data {
+    func download(checkSha1: Bool = true) async throws -> Data {
         guard let url = URL(string: self.url) else {
             throw CError.unknownError("Failed to create URL from \(self.url)")
         }
@@ -28,12 +28,15 @@ public extension Downloadable {
         } catch let err {
             throw CError.networkError(err.localizedDescription)
         }
-        let foundSha1 = data.sha1()
-
-        if foundSha1 != sha1 {
-            throw CError.sha1Error(sha1, foundSha1)
-        }
         
+        if checkSha1 {
+            let foundSha1 = data.sha1()
+
+            if foundSha1 != sha1 {
+                throw CError.sha1Error(sha1, foundSha1)
+            }
+        }
+            
         return data
     }
 }

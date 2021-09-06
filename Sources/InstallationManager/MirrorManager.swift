@@ -43,7 +43,7 @@ public struct MirrorRequest<Element: Downloadable> {
                                                  data: data)
         }
 
-        if var modified = self.source as? URLModifiable {
+        if var modified = self.source as? DownloadableModifiable {
             print("Record is mutable, assigning new URL")
             modified.url = "\(authorization.downloadUrl)/file/\(bucket.bucketName)/\(fileInfo.fileName)"
             return modified as! Element

@@ -97,7 +97,7 @@ struct RunCommand: ParsableCommand {
         if mojangManifest {
             manifestUrl = .mojang
         } else {
-            manifestUrl = .legacyCustom
+            manifestUrl = .backblaze
         }
 
         
@@ -126,7 +126,7 @@ struct RunCommand: ParsableCommand {
             // MARK: Version Info
             if listVersions {
                 print("Finding available versions...")
-                let versions = try await installationManager.availableVersions(url: manifestUrl)
+                let versions = try await installationManager.availableVersions(manifestUrl)
                 print("Available versions:")
                 for version in versions {
                     print("\t\(version.id)")
@@ -134,7 +134,7 @@ struct RunCommand: ParsableCommand {
                 MainCommand.exit()
             }
             
-            let versionInfo = try await installationManager.downloadVersionInfo(url: manifestUrl)
+            let versionInfo = try await installationManager.downloadVersionInfo(manifestUrl)
             guard versionInfo.minimumLauncherVersion >= 21 else {
                 print("Unfortunately, \(versionInfo.id) isn't available from this utility")
                 print("This utility is only tested with the latest version, and does not work with versions prior to 1.13")
@@ -142,7 +142,7 @@ struct RunCommand: ParsableCommand {
             }
 
             try await installationManager.downloadJar()
-            async let _ = try await installationManager.downloadJava(url: manifestUrl)
+            async let _ = try await installationManager.downloadJava(manifestUrl)
             async let _ = try await installationManager.downloadAssets()
             async let _ = try await installationManager.downloadLibraries()
         } catch let err {

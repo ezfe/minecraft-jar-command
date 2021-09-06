@@ -8,29 +8,40 @@
 import Foundation
 import Common
 
-public struct VersionManifest: Decodable {
+public struct VersionManifest: Codable {
     public let latest: Latest
-    public let versions: [VersionMetadata]
+    public var versions: [VersionMetadata]
     let javaVersions: [JavaVersionInfo]?
     
-    public struct VersionMetadata: Decodable {
+    public struct VersionMetadata: Codable, Downloadable {
         public let id: String
         let type: String
-        public let url: URL
         let time: Date
         let releaseTime: Date
+        public let url: String
+        public let sha1: String
+        
+        public init(id: String, type: String, time: Date, releaseTime: Date, url: String, sha1: String) {
+            self.id = id
+            self.type = type
+            self.time = time
+            self.releaseTime = releaseTime
+            self.url = url
+            self.sha1 = sha1
+        }
+
     }
     
-    public struct Latest: Decodable {
+    public struct Latest: Codable {
         let release: String
         let snapshot: String
     }
     
-    public struct JavaVersionInfo: Decodable {
+    public struct JavaVersionInfo: Codable, Downloadable, DownloadableModifiable {
         let version: Int
-        let url: String
-        let size: UInt
-        let sha1: String
+        public var url: String
+        public var size: UInt
+        public var sha1: String
     }
 }
 
@@ -40,10 +51,11 @@ public extension VersionManifest {
     enum ManifestUrls: String {
         case mojang = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
         case legacyCustom = "https://f001.backblazeb2.com/file/com-ezekielelin-publicFiles/lwjgl-arm/version_manifest_v2.json"
+        case backblaze = "https://f001.backblazeb2.com/file/minecraft-jar-command/version_manifest.json"
     }
     
-    static func downloadManifest(url: ManifestUrls) async throws -> VersionManifest {
-        let url = URL(string: url.rawValue)!
+    static func downloadManifest(_ type: ManifestUrls) async throws -> VersionManifest {
+        let url = URL(string: type.rawValue)!
         let manifestData = try await retrieveData(url: url)
         
         let decoder = JSONDecoder()
@@ -52,7 +64,6 @@ public extension VersionManifest {
         do {
             let manifest = try decoder.decode(VersionManifest.self, from: manifestData)
             return manifest
-            
         } catch let error {
             print(error)
             throw CError.decodingError("Failed to decode Version Manifest")

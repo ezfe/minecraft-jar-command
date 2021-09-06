@@ -78,25 +78,25 @@ extension InstallationManager {
         return URL(fileURLWithPath: "versions/\(version)", relativeTo: self.baseDirectory)
     }
     
-    func getManifest(url: VersionManifest.ManifestUrls) async throws -> VersionManifest {
-        if let manifest = self.manifests[url] {
+    func getManifest(_ type: VersionManifest.ManifestUrls) async throws -> VersionManifest {
+        if let manifest = self.manifests[type] {
             return manifest
         } else {
-            let manifest = try await VersionManifest.downloadManifest(url: url)
-            self.manifests[url] = manifest
+            let manifest = try await VersionManifest.downloadManifest(type)
+            self.manifests[type] = manifest
             return manifest
         }
     }
     
-    public func availableVersions(url: VersionManifest.ManifestUrls) async throws -> [VersionManifest.VersionMetadata] {
-        return try await self.getManifest(url: url).versions
+    public func availableVersions(_ type: VersionManifest.ManifestUrls) async throws -> [VersionManifest.VersionMetadata] {
+        return try await self.getManifest(type).versions
     }
 
     public func use(version: VersionManifest.VersionType) {
         self.versionRequested = version
     }
     
-    public func downloadVersionInfo(url: VersionManifest.ManifestUrls) async throws -> VersionPackage {
+    public func downloadVersionInfo(_ type: VersionManifest.ManifestUrls) async throws -> VersionPackage {
         let fm = FileManager.default
 
         // Check if the file exists on the local file system, and if it does
@@ -133,12 +133,12 @@ extension InstallationManager {
 
         // If we haven't aborted at this point, then no file already exists, or one
         // did and has been removed in the meantime.
-        let manifest = try await self.getManifest(url: url)
+        let manifest = try await self.getManifest(type)
         guard let entry = manifest.get(version: self.versionRequested) else {
             throw CError.unknownVersion("\(self.versionRequested)")
         }
         
-        let versionData = try await retrieveData(url: entry.url)
+        let versionData = try await entry.download()
         
         let package = try VersionPackage.decode(from: versionData)
 
@@ -355,14 +355,14 @@ extension InstallationManager {
         return URL(fileURLWithPath: "runtimes", relativeTo: self.baseDirectory)
     }
     
-    func javaVersionInfo(url: VersionManifest.ManifestUrls) async throws -> VersionManifest.JavaVersionInfo {
+    func javaVersionInfo(_ type: VersionManifest.ManifestUrls) async throws -> VersionManifest.JavaVersionInfo {
         guard let version = self.version else {
             throw CError.stateError("\(#function) must not be called before `version` is set")
         }
         
         let javaVersion = version.javaVersion?.majorVersion ?? 8
         
-        let versions = try await self.getManifest(url: url).javaVersions ?? []
+        let versions = try await self.getManifest(type).javaVersions ?? []
         let info = versions.first { $0.version == javaVersion }
         
         if let info = info {
@@ -372,7 +372,7 @@ extension InstallationManager {
         }
     }
 
-    public func downloadJava(url: VersionManifest.ManifestUrls) async throws -> URL {
+    public func downloadJava(_ type: VersionManifest.ManifestUrls) async throws -> URL {
         guard let version = self.version else {
             throw CError.stateError("\(#function) must not be called before `version` is set")
         }
@@ -385,7 +385,7 @@ extension InstallationManager {
         let bundleDestinationURL = self.javaVersionDirectory()
             .appendingPathComponent("java-\(javaVersion).bundle")
         
-        let javaVersionInfo = try await javaVersionInfo(url: url)
+        let javaVersionInfo = try await javaVersionInfo(type)
 
         guard let remoteURL = URL(string: javaVersionInfo.url) else {
             throw CError.decodingError("Failed to convert \(javaVersionInfo.url) to URL")

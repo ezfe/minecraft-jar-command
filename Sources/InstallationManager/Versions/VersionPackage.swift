@@ -21,7 +21,7 @@ public struct VersionPackage: Codable {
     public let minimumLauncherVersion: UInt
     public var releaseTime: Date
     public var time: Date
-    let type: ReleaseType
+    public let type: ReleaseType
 
     public let arguments: Arguments
     public var assetIndex: AssetIndex
@@ -148,7 +148,7 @@ extension VersionPackage {
 // MARK:- Asset Index
 
 extension VersionPackage {
-    public struct AssetIndex: Codable, Downloadable, URLModifiable {
+    public struct AssetIndex: Codable, DownloadableModifiable {
         let id: String
         public var sha1: String
         public var size: UInt
@@ -166,9 +166,9 @@ extension VersionPackage {
         public var server: Download
         public var serverMappings: Download
         
-        public struct Download: Codable, Downloadable, URLModifiable {
-            public let sha1: String
-            public let size: UInt
+        public struct Download: Codable, DownloadableModifiable {
+            public var sha1: String
+            public var size: UInt
             public var url: String
         }
     }
@@ -178,7 +178,7 @@ extension VersionPackage {
 
 extension VersionPackage {
     public struct Library: Codable {
-        public let name: String
+        public var name: String
         public var downloads: Download
         public let natives: Natives?
         public let rules: [Rule]?
@@ -187,18 +187,18 @@ extension VersionPackage {
             public var artifact: Artifact
             public var classifiers: [String: Artifact]?
             
-            public struct Artifact: Codable, Downloadable, URLModifiable {
-                public let path: String
-                public let sha1: String
-                public let size: UInt
+            public struct Artifact: Codable, Downloadable, DownloadableModifiable {
+                public var path: String
+                public var sha1: String
+                public var size: UInt
                 public var url: String
             }
         }
 
         public struct Natives: Codable {
-            let linux: String?
-            let osx: String?
-            let windows: String?
+            public let linux: String?
+            public let osx: String?
+            public let windows: String?
         }
     }
 }
@@ -214,10 +214,10 @@ extension VersionPackage {
             let file: File
             let type: String
             
-            struct File: Codable, Downloadable, URLModifiable {
+            struct File: Codable, Downloadable, DownloadableModifiable {
                 let id: String
-                let sha1: String
-                let size: UInt
+                var sha1: String
+                var size: UInt
                 var url: String
             }
         }
@@ -227,7 +227,7 @@ extension VersionPackage {
 // MARK:- Release Type
 
 extension VersionPackage {
-    enum ReleaseType: String, Codable {
+    public enum ReleaseType: String, Codable {
         case release, snapshot
     }
 }

@@ -11,12 +11,15 @@ import Common
 public struct AssetsIndex: Codable {
     public var objects: [String: Metadata]
     
-    public struct Metadata: Codable, Downloadable, URLModifiable {
-        public let hash: String
-        public let size: UInt
+    public struct Metadata: Codable, DownloadableModifiable {
+        public private(set) var hash: String
+        public var size: UInt
         public var url: String
         
-        public var sha1: String { self.hash }
+        public var sha1: String {
+            get { self.hash }
+            set { self.hash = newValue }
+        }
         
         enum CodingKeys: CodingKey {
             case hash
