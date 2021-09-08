@@ -18,13 +18,13 @@ actor DownloadManager {
     init(_ batch: [DownloadRequest], named batchName: String) {
         self.batch = batch
         self.batchName = batchName
-        self.totalSize = batch.map { $0.size }.reduce(0, +)
+        self.totalSize = batch.map { $0.source.size }.reduce(0, +)
     }
     
     init(_ request: DownloadRequest) {
         self.batch = [request]
         self.batchName = nil
-        self.totalSize = request.size
+        self.totalSize = request.source.size
     }
     
     func download(progress: ((Double) -> Void)? = nil) async throws {
@@ -35,7 +35,7 @@ actor DownloadManager {
         for request in batch {
             try await self.download(request)
             
-            currentTotal += request.size
+            currentTotal += request.source.size
             if let progress = progress {
                 progress(Double(currentTotal) / Double(totalSize))
             }
@@ -46,9 +46,9 @@ actor DownloadManager {
         }
     }
 
-    func verifySha1(url: URL, sha1: String?, fm: FileManager) -> Bool {
-        if fm.fileExists(atPath: url.path) {
-            if let fileData = fm.contents(atPath: url.path) {
+    func verifySha1(localURL: URL, sha1: String?, fm: FileManager) -> Bool {
+        if fm.fileExists(atPath: localURL.path) {
+            if let fileData = fm.contents(atPath: localURL.path) {
                 let foundSha1 = Insecure.SHA1.hash(data: fileData).compactMap { String(format: "%02x", $0) }.joined()
                 if foundSha1.lowercased() == sha1 {
                     return true
@@ -62,7 +62,7 @@ actor DownloadManager {
         let fm = FileManager.default
 
         do {
-            if verifySha1(url: request.destinationURL, sha1: request.sha1, fm: fm) {
+            if verifySha1(localURL: request.destinationURL, sha1: request.source.sha1, fm: fm) {
                 return
             } else {
                 if fm.fileExists(atPath: request.destinationURL.path) {
@@ -76,18 +76,10 @@ actor DownloadManager {
             throw CError.filesystemError(err.localizedDescription)
         }
         
-        let temporaryURL: URL
-        do {
-            temporaryURL = try await URLSession.shared.download(from: request.remoteURL).0
-        } catch let err {
-            throw CError.networkError(err.localizedDescription)
-        }
+        let data = try await request.source.download()
         
         do {
-            if fm.fileExists(atPath: request.destinationURL.path) {
-                try fm.removeItem(at: request.destinationURL)
-            }
-            try fm.moveItem(at: temporaryURL, to: request.destinationURL)
+            try data.write(to: request.destinationURL)
         } catch let err {
             throw CError.filesystemError(err.localizedDescription)
         }
@@ -97,23 +89,17 @@ actor DownloadManager {
 extension DownloadManager {
     struct DownloadRequest {
         let taskName: String
-        let remoteURL: URL
+        let source: SizedDownloadable
         let destinationURL: URL
-        let size: UInt
-        let sha1: String
         let verbose: Bool
 
         internal init(taskName: String,
-                      remoteURL: URL,
+                      source: SizedDownloadable,
                       destinationURL: URL,
-                      size: UInt,
-                      sha1: String,
                       verbose: Bool = true) {
             self.taskName = taskName
-            self.remoteURL = remoteURL
+            self.source = source
             self.destinationURL = destinationURL
-            self.size = size
-            self.sha1 = sha1
             self.verbose = verbose
         }
     }

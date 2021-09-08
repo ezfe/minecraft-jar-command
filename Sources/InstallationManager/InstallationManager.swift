@@ -170,15 +170,9 @@ extension InstallationManager {
         
         let destinationURL = self.destinationDirectory(for: version.id).appendingPathComponent("\(version.id).jar")
         
-        guard let remoteURL = URL(string: version.downloads.client.url) else {
-            throw CError.decodingError("Failed to parse out client JAR download URL")
-        }
-        
         let request = DownloadManager.DownloadRequest(taskName: "Client JAR File",
-                                                      remoteURL: remoteURL,
-                                                      destinationURL: destinationURL,
-                                                      size: version.downloads.client.size,
-                                                      sha1: version.downloads.client.sha1)
+                                                      source: version.downloads.client,
+                                                      destinationURL: destinationURL)
         
         let downloader = DownloadManager(request)
         try await downloader.download()
@@ -192,17 +186,11 @@ extension InstallationManager {
     func processArtifact(libraryInfo: VersionPackage.Library) throws -> LibraryMetadata? {
         let artifact = libraryInfo.downloads.artifact
         
-        guard let remoteURL = URL(string: artifact.url) else {
-            throw CError.decodingError("Failed to parse out artifact URL")
-        }
-        
         let destinationURL = self.libraryDirectory.appendingPathComponent(artifact.path)
 
         let request = DownloadManager.DownloadRequest(taskName: "Library \(libraryInfo.name)",
-                                                      remoteURL: remoteURL,
+                                                      source: artifact,
                                                       destinationURL: destinationURL,
-                                                      size: artifact.size,
-                                                      sha1: artifact.sha1,
                                                       verbose: false)
         return LibraryMetadata(localURL: destinationURL, isNative: false, downloadRequest: request)
     }
@@ -220,17 +208,11 @@ extension InstallationManager {
             throw CError.decodingError("There's a natives entry for macOS = \(nativesMappingKey), but there's no corresponding download")
         }
 
-        guard let remoteURL = URL(string: macosNativeDict.url) else {
-            throw CError.decodingError("Failed to parse out native URL")
-        }
-
         let destinationURL = self.libraryDirectory.appendingPathComponent(macosNativeDict.path)
 
         let request = DownloadManager.DownloadRequest(taskName: "Library/Native \(libraryInfo.name)",
-                                                      remoteURL: remoteURL,
+                                                      source: macosNativeDict,
                                                       destinationURL: destinationURL,
-                                                      size: macosNativeDict.size,
-                                                      sha1: macosNativeDict.sha1,
                                                       verbose: false)
 
         return LibraryMetadata(localURL: destinationURL, isNative: true, downloadRequest: request)
@@ -335,10 +317,8 @@ extension InstallationManager {
                 .appendingPathComponent("\(metadata.sha1.prefix(2))/\(metadata.sha1)")
 
             let request = DownloadManager.DownloadRequest(taskName: "Asset \(name)",
-                                                          remoteURL: URL(string: metadata.url)!,
+                                                          source: metadata,
                                                           destinationURL: destinationURL,
-                                                          size: metadata.size,
-                                                          sha1: metadata.sha1,
                                                           verbose: false)
 
             return request
@@ -387,14 +367,9 @@ extension InstallationManager {
         
         let javaVersionInfo = try await javaVersionInfo(type)
 
-        guard let remoteURL = URL(string: javaVersionInfo.url) else {
-            throw CError.decodingError("Failed to convert \(javaVersionInfo.url) to URL")
-        }
         let request = DownloadManager.DownloadRequest(taskName: "Java Runtime",
-                                                      remoteURL: remoteURL,
-                                                      destinationURL: temporaryDestinationURL,
-                                                      size: javaVersionInfo.size,
-                                                      sha1: javaVersionInfo.sha1)
+                                                      source: javaVersionInfo,
+                                                      destinationURL: temporaryDestinationURL)
         
         let downloader = DownloadManager(request)
         try await downloader.download()

@@ -37,7 +37,7 @@ public struct VersionManifest: Codable {
         let snapshot: String
     }
     
-    public struct JavaVersionInfo: Codable, Downloadable, DownloadableModifiable {
+    public struct JavaVersionInfo: Codable, Downloadable, DownloadableModifiable, SizedDownloadable {
         let version: Int
         public var url: String
         public var size: UInt

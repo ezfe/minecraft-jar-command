@@ -11,7 +11,7 @@ import Common
 public struct AssetsIndex: Codable {
     public var objects: [String: Metadata]
     
-    public struct Metadata: Codable, DownloadableModifiable {
+    public struct Metadata: Codable, DownloadableModifiable, SizedDownloadable {
         public private(set) var hash: String
         public var size: UInt
         public var url: String

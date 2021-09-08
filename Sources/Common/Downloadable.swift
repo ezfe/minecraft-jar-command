@@ -12,6 +12,10 @@ public protocol Downloadable {
     var sha1: String { get }
 }
 
+public protocol SizedDownloadable: Downloadable {
+    var size: UInt { get }
+}
+
 public protocol DownloadableModifiable: Downloadable {
     var url: String { get set }
 }

@@ -161,7 +161,7 @@ extension VersionPackage {
 // MARK:- Asset Index
 
 extension VersionPackage {
-    public struct AssetIndex: Codable, DownloadableModifiable {
+    public struct AssetIndex: Codable, DownloadableModifiable, SizedDownloadable {
         let id: String
         public var sha1: String
         public var size: UInt
@@ -179,7 +179,7 @@ extension VersionPackage {
         public var server: Download
         public var serverMappings: Download
         
-        public struct Download: Codable, DownloadableModifiable {
+        public struct Download: Codable, DownloadableModifiable, SizedDownloadable {
             public var sha1: String
             public var size: UInt
             public var url: String
@@ -200,7 +200,7 @@ extension VersionPackage {
             public var artifact: Artifact
             public var classifiers: [String: Artifact]?
             
-            public struct Artifact: Codable, Downloadable, DownloadableModifiable {
+            public struct Artifact: Codable, Downloadable, DownloadableModifiable, SizedDownloadable {
                 public var path: String
                 public var sha1: String
                 public var size: UInt
@@ -227,7 +227,7 @@ extension VersionPackage {
             let file: File
             let type: String
             
-            struct File: Codable, Downloadable, DownloadableModifiable {
+            struct File: Codable, Downloadable, DownloadableModifiable, SizedDownloadable {
                 let id: String
                 var sha1: String
                 var size: UInt

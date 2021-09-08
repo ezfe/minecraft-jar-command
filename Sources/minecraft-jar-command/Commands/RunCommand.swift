@@ -166,10 +166,6 @@ struct RunCommand: ParsableCommand {
                 proc.arguments = args
                 proc.currentDirectoryURL = installationManager.baseDirectory
 
-                print(proc.executableURL!.path)
-                print(proc.arguments)
-                print(proc.currentDirectoryURL!.path)
-                
                 let pipe = Pipe()
                 proc.standardOutput = pipe
 
