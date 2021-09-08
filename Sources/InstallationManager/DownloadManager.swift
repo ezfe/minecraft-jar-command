@@ -31,7 +31,7 @@ actor DownloadManager {
         if let batchName = batchName {
             print("==== Starting Download Batch : \(batchName) ====")
         }
-                
+        
         for request in batch {
             try await self.download(request)
             
@@ -76,27 +76,20 @@ actor DownloadManager {
             throw CError.filesystemError(err.localizedDescription)
         }
         
-        return try await withCheckedThrowingContinuation { continuation in
-            let task = URLSession.shared.downloadTask(with: request.remoteURL) { (temporaryURL, response, error) in
-                guard let temporaryURL = temporaryURL, error == nil else {
-                    continuation.resume(throwing: CError.networkError(error?.localizedDescription ?? "Unknown error download error"))
-                    return
-                }
-
-                do {
-                    if fm.fileExists(atPath: request.destinationURL.path) {
-                        try fm.removeItem(at: request.destinationURL)
-                    }
-                    try fm.moveItem(at: temporaryURL, to: request.destinationURL)
-                } catch let err {
-                    continuation.resume(throwing: CError.filesystemError(err.localizedDescription))
-                    return
-                }
-
-                continuation.resume()
-                return
+        let temporaryURL: URL
+        do {
+            temporaryURL = try await URLSession.shared.download(from: request.remoteURL).0
+        } catch let err {
+            throw CError.networkError(err.localizedDescription)
+        }
+        
+        do {
+            if fm.fileExists(atPath: request.destinationURL.path) {
+                try fm.removeItem(at: request.destinationURL)
             }
-            task.resume()
+            try fm.moveItem(at: temporaryURL, to: request.destinationURL)
+        } catch let err {
+            throw CError.filesystemError(err.localizedDescription)
         }
     }
 }

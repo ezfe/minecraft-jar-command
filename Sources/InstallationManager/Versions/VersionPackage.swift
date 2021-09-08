@@ -45,6 +45,19 @@ public struct VersionPackage: Codable {
             throw CError.decodingError(error.localizedDescription)
         }
     }
+    
+    public func encode() throws -> Data {
+        let jsonEncoder = JSONEncoder()
+        jsonEncoder.keyEncodingStrategy = .convertToSnakeCase
+        jsonEncoder.dateEncodingStrategy = .iso8601
+        
+        do {
+            return try jsonEncoder.encode(self)
+        } catch let error {
+            print(error)
+            throw CError.encodingError(error.localizedDescription)
+        }
+    }
 }
 
 // MARK:- Arguments

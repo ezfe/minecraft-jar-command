@@ -20,6 +20,15 @@ struct SyncCommand: ParsableCommand {
     
     @Option(help: "The Minecraft version to download")
     var version: String
+    
+    @Option(help: "Backblaze Application Key ID")
+    var applicationKeyId: String
+    
+    @Option(help: "Backblaze Application Key")
+    var applicationKey: String
+    
+    @Option(help: "Backblaze Bucket Name")
+    var bucketName: String = "minecraft-jar-command"
 
     mutating func run() async throws {
         let mojangManifest = try await VersionManifest.downloadManifest(.mojang)
@@ -38,10 +47,9 @@ struct SyncCommand: ParsableCommand {
         let package = try VersionPackage.decode(from: versionPackageData)
         var modifiedPackage = package
         
-        let bucketName = "minecraft-jar-command"
         let authorization = try await AuthorizeAccount.exec(
-            applicationKeyId: "0011acffbd43dbe0000000004",
-            applicationKey: "K0019Dwi4j/N57+rNLm5QVm7UUQsqtA"
+            applicationKeyId: applicationKeyId,
+            applicationKey: applicationKey
         )
         let bucket = try await ListBuckets
             .exec(authorization: authorization)
@@ -61,50 +69,29 @@ struct SyncCommand: ParsableCommand {
         modifiedPackage.downloads.client.sha1 = newClientData.sha1()
         modifiedPackage.downloads.client.size = UInt(newClientData.count)
         
-        let downloadRequests = [
-            MirrorRequest(
-                source: modifiedPackage.downloads.client,
-                targetName: "\(modifiedPackage.id)/downloads/client.jar",
-                fileType: "application/java-archive"
-            ),
-            MirrorRequest(
-                source: modifiedPackage.downloads.clientMappings,
-                targetName: "\(modifiedPackage.id)/downloads/client.txt",
-                fileType: "text/plain"
-            ),
-            MirrorRequest(
-                source: modifiedPackage.downloads.server,
-                targetName: "\(modifiedPackage.id)/downloads/server.jar",
-                fileType: "application/java-archive"
-            ),
-            MirrorRequest(
-                source: modifiedPackage.downloads.serverMappings,
-                targetName: "\(modifiedPackage.id)/downloads/server.txt",
-                fileType: "text/plain"
-            )
-        ];
-        let processedDownloads = await withTaskGroup(of: VersionPackage.Downloads.Download.self,
-                                                     returning: [VersionPackage.Downloads.Download].self,
-                                                     body: { group in
-            for req in downloadRequests {
-                group.addTask {
-                    return try! await req.process(with: authorization,
-                                                  to: bucket,
-                                                  existingFiles: existingFiles)
-                }
-            }
-            
-            var collected = [VersionPackage.Downloads.Download]()
-            for await v in group {
-                collected.append(v)
-            }
-            return collected
-        })
+        modifiedPackage.downloads.client = try await MirrorRequest(
+            source: modifiedPackage.downloads.client,
+            targetName: "\(modifiedPackage.id)/downloads/client.jar",
+            fileType: "application/java-archive"
+        ).process(with: authorization, to: bucket, existingFiles: existingFiles)
         
-        modifiedPackage.downloads.client = processedDownloads[0]
-        modifiedPackage.downloads.clientMappings = processedDownloads[1]
-        modifiedPackage.downloads.server = processedDownloads[2]
-        modifiedPackage.downloads.serverMappings = processedDownloads[3]
+        modifiedPackage.downloads.clientMappings = try await MirrorRequest(
+            source: modifiedPackage.downloads.clientMappings,
+            targetName: "\(modifiedPackage.id)/downloads/client.txt",
+            fileType: "text/plain"
+        ).process(with: authorization, to: bucket, existingFiles: existingFiles)
+        
+        modifiedPackage.downloads.server = try await MirrorRequest(
+            source: modifiedPackage.downloads.server,
+            targetName: "\(modifiedPackage.id)/downloads/server.jar",
+            fileType: "application/java-archive"
+        ).process(with: authorization, to: bucket, existingFiles: existingFiles)
+        
+        modifiedPackage.downloads.serverMappings = try await MirrorRequest(
+            source: modifiedPackage.downloads.serverMappings,
+            targetName: "\(modifiedPackage.id)/downloads/server.txt",
+            fileType: "text/plain"
+        ).process(with: authorization, to: bucket, existingFiles: existingFiles)
         
         // MARK: Libraries and Assets
         modifiedPackage.libraries = await mirrorLibraries(authorization: authorization,
@@ -113,17 +100,14 @@ struct SyncCommand: ParsableCommand {
                                                           package: package)
         
         modifiedPackage.assetIndex = try await mirrorAssets(authorization: authorization,
-                                                        bucket: bucket,
-                                                        existingFiles: existingFiles,
-                                                        package: package)
+                                                            bucket: bucket,
+                                                            existingFiles: existingFiles,
+                                                            package: package)
         
         modifiedPackage.time = Date()
         
         // MARK: Version JSON
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-
-        let packageData = try encoder.encode(modifiedPackage)
+        let packageData = try modifiedPackage.encode()
         
         let packageFileName = "\(package.id)/\(package.id).json"
         let uploadResult = try await UploadFile.exec(authorization: authorization,
@@ -150,6 +134,9 @@ struct SyncCommand: ParsableCommand {
                                             sha1: uploadResult.contentSha1)
         )
         
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+
         let backblazeManifestData = try encoder.encode(backblazeManifest)
         
         let _ = try await UploadFile.exec(authorization: authorization,
