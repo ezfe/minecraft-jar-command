@@ -7,6 +7,8 @@ For Minecraft 1.17.1, run the following command:
 minecraft-jar-command --version 1.17.1-arm64 --java-executable /Library/Java/JavaVirtualMachines/arm-zulu-16.jre/Contents/Home/bin/java
 ```
 
+For Minecraft 21w37a, change `1.17.1-arm64` to `21w37a` in the above command.
+
 With the path pointing to an ARM-native Java 16 runtime or JDK. In my case, I used the Azul Java 16 ARM JRE for macOS.
 
 ---
