@@ -42,10 +42,6 @@ struct SyncCommand: ParsableCommand {
             print("\(version) already exists, please delete first.")
             return
         }
-
-        let versionPackageData = try await versionMetadata.download()
-        let package = try VersionPackage.decode(from: versionPackageData)
-        var modifiedPackage = package
         
         let authorization = try await AuthorizeAccount.exec(
             applicationKeyId: applicationKeyId,
@@ -61,53 +57,54 @@ struct SyncCommand: ParsableCommand {
                   maxFileCount: 10_000)
             .files
 
+        // MARK: Download and Patch
+        let versionPackageData = try await versionMetadata.download()
+        let _package = try VersionPackage.decode(from: versionPackageData)
+        let patchInfo = try await VersionPatch.download(for: _package.id)
+        
+        var package = try await patchInfo?.patch(package: _package) ?? _package
+        
         // MARK: Downloads
-
-        let newClientURL = "https://f001.backblazeb2.com/file/com-ezekielelin-publicFiles/lwjgl-arm/1.17.1-arm64.jar"
-        modifiedPackage.downloads.client.url = newClientURL
-        let newClientData = try! await modifiedPackage.downloads.client.download(checkSha1: false)
-        modifiedPackage.downloads.client.sha1 = newClientData.sha1()
-        modifiedPackage.downloads.client.size = UInt(newClientData.count)
-        
-        modifiedPackage.downloads.client = try await MirrorRequest(
-            source: modifiedPackage.downloads.client,
-            targetName: "\(modifiedPackage.id)/downloads/client.jar",
-            fileType: "application/java-archive"
-        ).process(with: authorization, to: bucket, existingFiles: existingFiles)
-        
-        modifiedPackage.downloads.clientMappings = try await MirrorRequest(
-            source: modifiedPackage.downloads.clientMappings,
-            targetName: "\(modifiedPackage.id)/downloads/client.txt",
-            fileType: "text/plain"
-        ).process(with: authorization, to: bucket, existingFiles: existingFiles)
-        
-        modifiedPackage.downloads.server = try await MirrorRequest(
-            source: modifiedPackage.downloads.server,
-            targetName: "\(modifiedPackage.id)/downloads/server.jar",
-            fileType: "application/java-archive"
-        ).process(with: authorization, to: bucket, existingFiles: existingFiles)
-        
-        modifiedPackage.downloads.serverMappings = try await MirrorRequest(
-            source: modifiedPackage.downloads.serverMappings,
-            targetName: "\(modifiedPackage.id)/downloads/server.txt",
-            fileType: "text/plain"
-        ).process(with: authorization, to: bucket, existingFiles: existingFiles)
+//        package.downloads.client = try await MirrorRequest(
+//            source: package.downloads.client,
+//            targetName: "\(package.id)/downloads/client.jar",
+//            fileType: "application/java-archive"
+//        ).process(with: authorization, to: bucket, existingFiles: existingFiles)
+//
+//        package.downloads.clientMappings = try await MirrorRequest(
+//            source: package.downloads.clientMappings,
+//            targetName: "\(package.id)/downloads/client.txt",
+//            fileType: "text/plain"
+//        ).process(with: authorization, to: bucket, existingFiles: existingFiles)
+//
+//        package.downloads.server = try await MirrorRequest(
+//            source: package.downloads.server,
+//            targetName: "\(package.id)/downloads/server.jar",
+//            fileType: "application/java-archive"
+//        ).process(with: authorization, to: bucket, existingFiles: existingFiles)
+//
+//        package.downloads.serverMappings = try await MirrorRequest(
+//            source: package.downloads.serverMappings,
+//            targetName: "\(package.id)/downloads/server.txt",
+//            fileType: "text/plain"
+//        ).process(with: authorization, to: bucket, existingFiles: existingFiles)
         
         // MARK: Libraries and Assets
-        modifiedPackage.libraries = await mirrorLibraries(authorization: authorization,
-                                                          bucket: bucket,
-                                                          existingFiles: existingFiles,
-                                                          package: package)
+//        package.libraries = await mirrorLibraries(authorization: authorization,
+//                                                  bucket: bucket,
+//                                                  existingFiles: existingFiles,
+//                                                  package: package,
+//                                                  patchInfo: patchInfo)
         
-        modifiedPackage.assetIndex = try await mirrorAssets(authorization: authorization,
-                                                            bucket: bucket,
-                                                            existingFiles: existingFiles,
-                                                            package: package)
+//        package.assetIndex = try await mirrorAssets(authorization: authorization,
+//                                                    bucket: bucket,
+//                                                    existingFiles: existingFiles,
+//                                                    package: package)
         
-        modifiedPackage.time = Date()
+        package.time = Date()
         
         // MARK: Version JSON
-        let packageData = try modifiedPackage.encode()
+        let packageData = try package.encode()
         
         let packageFileName = "\(package.id)/\(package.id).json"
         let uploadResult = try await UploadFile.exec(authorization: authorization,
@@ -126,10 +123,10 @@ struct SyncCommand: ParsableCommand {
         // MARK: Manifest
         
         backblazeManifest.versions.append(
-            VersionManifest.VersionMetadata(id: modifiedPackage.id,
-                                            type: modifiedPackage.type.rawValue,
-                                            time: modifiedPackage.time,
-                                            releaseTime: modifiedPackage.releaseTime,
+            VersionManifest.VersionMetadata(id: package.id,
+                                            type: package.type.rawValue,
+                                            time: package.time,
+                                            releaseTime: package.releaseTime,
                                             url: versionPackageUrl,
                                             sha1: uploadResult.contentSha1)
         )
@@ -151,7 +148,8 @@ struct SyncCommand: ParsableCommand {
 func mirrorLibraries(authorization: AuthorizeAccount.Response,
                      bucket: ListBuckets.Response.Bucket,
                      existingFiles: [UploadFile.Response],
-                     package: VersionPackage) async -> [VersionPackage.Library] {
+                     package: VersionPackage,
+                     patchInfo: VersionPatch?) async -> [VersionPackage.Library] {
     
     let applicableLibraries = package.libraries
         .filter { RuleProcessor.verifyRulesPass($0.rules, with: .none) }
@@ -166,51 +164,6 @@ func mirrorLibraries(authorization: AuthorizeAccount.Response,
                 group.addTask {
                     var modifiedLibrary = library
                     
-                    // MARK: Patch LWJGL
-                    let lwjglVersion = "nightly-2021-06-02"
-                    let lwjglUrlPrefix = "https://f001.backblazeb2.com/file/com-ezekielelin-publicFiles/lwjgl-arm/lwjgl-nightly-2021-06-02-custom/"
-                    let lwjglUrls = [
-                        "lwjgl": "lwjgl.jar",
-                        "lwjgl-opengl": "lwjgl-opengl.jar",
-                        "lwjgl-openal": "lwjgl-openal.jar",
-                        "lwjgl-jemalloc": "lwjgl-jemalloc.jar",
-                        "lwjgl-stb": "lwjgl-stb.jar",
-                        "lwjgl-tinyfd": "lwjgl-tinyfd.jar",
-                        "lwjgl-glfw": "lwjgl-glfw.jar"
-                    ]
-                    let lwjglNativeurls = [
-                        "lwjgl": "lwjgl-natives-macos-arm64.jar",
-                        "lwjgl-opengl": "lwjgl-opengl-natives-macos-arm64.jar",
-                        "lwjgl-openal": "lwjgl-openal-natives-macos-arm64.jar",
-                        "lwjgl-jemalloc": "lwjgl-jemalloc-natives-macos-arm64.jar",
-                        "lwjgl-stb": "lwjgl-stb-natives-macos-arm64.jar",
-                        "lwjgl-tinyfd": "lwjgl-tinyfd-natives-macos-arm64.jar",
-                        "lwjgl-glfw": "lwjgl-glfw-natives-macos-arm64.jar"
-                    ]
-                    let libNameComponents = library.name.split(separator: ":")
-                    let libOrg = libNameComponents[0]
-                    let libName = libNameComponents[1]
-                    let libVersion = libNameComponents[2]
-                    
-                    let isPatching = libName.contains("lwjgl")
-                    
-                    if isPatching {
-                        if let urlSuffix = lwjglUrls[String(libName)] {
-                            let url = "\(lwjglUrlPrefix)\(urlSuffix)"
-                            modifiedLibrary.name = "\(libOrg):\(libName):\(lwjglVersion)"
-                            modifiedLibrary.downloads.artifact.url = url
-                            modifiedLibrary.downloads.artifact.path = library.downloads.artifact.path
-                                .replacingOccurrences(of: libVersion, with: lwjglVersion)
-                            
-                            let newData = try! await modifiedLibrary.downloads.artifact.download(checkSha1: false)
-                            modifiedLibrary.downloads.artifact.sha1 = newData.sha1()
-                            modifiedLibrary.downloads.artifact.size = UInt(newData.count)
-                        } else {
-                            print("Cannot find mapping for \(libOrg):\(libName):\(libVersion)")
-                            exit(2)
-                        }
-                    }
-                    
                     // MARK: Mirror primary artifact
                     let artifactPath = "common/libraries/\(modifiedLibrary.downloads.artifact.path)"
                     let artifactRequest = MirrorRequest(source: modifiedLibrary.downloads.artifact,
@@ -220,29 +173,10 @@ func mirrorLibraries(authorization: AuthorizeAccount.Response,
                                                                               to: bucket,
                                                                               existingFiles: existingFiles)
                     modifiedLibrary.downloads.artifact = modifiedArtifact
-
                     
                     //MARK: - Mirror classifiers
                     if let osxKey = library.natives?.osx,
-                       var osxClassifier = library.downloads.classifiers?[osxKey] {
-                                                
-                        // Patch LWJGL Natives
-                        if isPatching {
-                            if let urlSuffix = lwjglNativeurls[String(libName)] {
-                                let url = "\(lwjglUrlPrefix)\(urlSuffix)"
-                                osxClassifier.url = url
-                                osxClassifier.path = osxClassifier.path
-                                    .replacingOccurrences(of: libVersion, with: lwjglVersion)
-                                
-                                let newData = try! await osxClassifier.download(checkSha1: false)
-                                osxClassifier.sha1 = newData.sha1()
-                                osxClassifier.size = UInt(newData.count)
-                            } else {
-                                print("Cannot find NATIVE mapping for \(libOrg):\(libName):\(libVersion) -- \(osxKey) classifier")
-                                exit(2)
-                            }
-                        }
-                        
+                       let osxClassifier = library.downloads.classifiers?[osxKey] {
                         // Upload to Backblaze
                         let classifierArtifactPath = "common/libraries/\(osxClassifier.path)"
                         let classifierArtifactRequest = MirrorRequest(

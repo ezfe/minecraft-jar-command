@@ -26,6 +26,9 @@ struct RunCommand: ParsableCommand {
     @Flag(help: "List available versions")
     var listVersions = false
     
+    @Flag(help: "Suppress progress printout")
+    var suppressProgress = false
+    
     @Option(help: "The directory to save assets and libraries to")
     var workingDirectory: String?
     
@@ -88,10 +91,11 @@ struct RunCommand: ParsableCommand {
             MainCommand.exit()
         }
         
-        let auth = try AuthenticationManager.refresh(accessToken: accessToken, clientToken: clientToken)
+        let auth = AuthResult(accessToken: accessToken, clientToken: clientToken, profile: Profile(name: "ezfe", id: "1e6e79ca12a64a25ae0535cfa0ae576d"))
+//        let auth = try AuthenticationManager.refresh(accessToken: accessToken, clientToken: clientToken)
         
-        defaults.set(auth.clientToken, forKey: "clientToken")
-        defaults.set(auth.accessToken, forKey: "accessToken")
+//        defaults.set(auth.clientToken, forKey: "clientToken")
+//        defaults.set(auth.accessToken, forKey: "accessToken")
 
         let manifestUrl: VersionManifest.ManifestUrls
         if mojangManifest {
@@ -140,13 +144,28 @@ struct RunCommand: ParsableCommand {
                 print("This utility is only tested with the latest version, and does not work with versions prior to 1.13")
                 MainCommand.exit()
             }
-
+            
             try await installationManager.downloadJar()
-            async let _ = try await installationManager.downloadJava(manifestUrl)
-            async let _ = try await installationManager.downloadAssets()
-            async let _ = try await installationManager.downloadLibraries()
+            let _ = try await installationManager.downloadJava(manifestUrl)
+            
+            var lastProgress = 0
+            let suppressProgress = self.suppressProgress
+            let _ = try await installationManager.downloadAssets { progress in
+                if !suppressProgress {
+                    let intProgress = Int(progress * 100)
+                    if intProgress > lastProgress {
+                        lastProgress = intProgress
+                        print("\(intProgress)%")
+                    }
+                }
+            }
+            let _ = try await installationManager.downloadLibraries()
         } catch let err {
+            print("If a network/time-out error occurred, simply restart the program. It will resume where it left off.")
             MainCommand.exit(withError: err)
+        }
+        if !suppressProgress {
+            print("You can hide the progress printout by adding flag: `--suppress-progress`")
         }
 
         print("Queued up downloads")

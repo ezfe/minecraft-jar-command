@@ -412,7 +412,7 @@ extension InstallationManager {
                                                   classPath: classPath,
                                                   authResults: auth)
         
-        let jvmArgsStr = argumentProcessor.jvmArguments(versionInfo: version)
+        let jvmArgsStr = argumentProcessor.jvmArguments(versionInfo: version) + ["-Xmx2G"] // 2 GB
         let gameArgsString = argumentProcessor.gameArguments(versionInfo: version)
 
         let args = ["-Xms1024M", "-Xmx1024M"] + jvmArgsStr + [version.mainClass] + gameArgsString
