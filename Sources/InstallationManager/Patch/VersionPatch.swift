@@ -20,7 +20,7 @@ public struct VersionPatch: Decodable {
     }
     
     public static func download(for version: String) async throws -> Self? {
-        guard let url = URL(string: "https://f001.backblazeb2.com/file/minecraft-jar-command/patch/\(version).json") else {
+        guard let url = URL(string: "https://m1craft-server.ezekiel.workers.dev/patch/\(version).json") else {
             throw CError.encodingError("Failed to create patch URL for version \(version)")
         }
         

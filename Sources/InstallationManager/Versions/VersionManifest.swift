@@ -11,7 +11,6 @@ import Common
 public struct VersionManifest: Codable {
     public let latest: Latest
     public var versions: [VersionMetadata]
-    let javaVersions: [JavaVersionInfo]?
     
     public struct VersionMetadata: Codable, Downloadable {
         public let id: String
@@ -35,13 +34,6 @@ public struct VersionManifest: Codable {
     public struct Latest: Codable {
         let release: String
         let snapshot: String
-    }
-    
-    public struct JavaVersionInfo: Codable, DownloadableAllModifiable {
-        let version: Int
-        public var url: String
-        public var size: UInt
-        public var sha1: String
     }
 }
 

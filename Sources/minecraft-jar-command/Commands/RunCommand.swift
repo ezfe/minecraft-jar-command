@@ -78,14 +78,6 @@ struct RunCommand: ParsableCommand {
         let launcherProfilesData = try! Data(contentsOf: launcherProfilesURL)
         let launcherProfiles = try! JSONDecoder().decode(LauncherProfiles.self, from: launcherProfilesData)
         
-        let manifestUrl: VersionManifest.ManifestUrls
-        if mojangManifest {
-            manifestUrl = .mojang
-        } else {
-            manifestUrl = .backblaze
-        }
-
-        
         let gameDirectory = self.gameDirectory != nil ? URL(fileURLWithPath: self.gameDirectory!) : nil
         
         let installationManager: InstallationManager
@@ -111,7 +103,7 @@ struct RunCommand: ParsableCommand {
             // MARK: Version Info
             if listVersions {
                 print("Finding available versions...")
-                let versions = try await installationManager.availableVersions(manifestUrl)
+                let versions = try await installationManager.availableVersions(.mojang)
                 print("Available versions:")
                 for version in versions {
                     print("\t\(version.id)")
@@ -119,7 +111,7 @@ struct RunCommand: ParsableCommand {
                 MainCommand.exit()
             }
             
-            let versionInfo = try await installationManager.downloadVersionInfo(manifestUrl)
+            let versionInfo = try await installationManager.downloadVersionInfo(.mojang)
             guard versionInfo.minimumLauncherVersion >= 21 else {
                 print("Unfortunately, \(versionInfo.id) isn't available from this utility")
                 print("This utility is only tested with the latest version, and does not work with versions prior to 1.13")
@@ -127,7 +119,7 @@ struct RunCommand: ParsableCommand {
             }
             
             try await installationManager.downloadJar()
-            let _ = try await installationManager.downloadJava(manifestUrl)
+            let _ = try await installationManager.downloadJava(.mojang)
             
             var lastProgress = 0
             let suppressProgress = self.suppressProgress

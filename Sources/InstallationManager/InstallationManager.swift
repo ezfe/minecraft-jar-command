@@ -338,15 +338,20 @@ extension InstallationManager {
         return URL(fileURLWithPath: "runtimes", relativeTo: self.baseDirectory)
     }
     
-    func javaVersionInfo(_ type: VersionManifest.ManifestUrls) async throws -> VersionManifest.JavaVersionInfo {
+    func javaVersionInfo(_ type: VersionManifest.ManifestUrls) async throws -> JavaVersionInfo {
         guard let version = self.version else {
             throw CError.stateError("\(#function) must not be called before `version` is set")
         }
         
         let javaVersion = version.javaVersion?.majorVersion ?? 8
         
-        let versions = try await self.getManifest(type).javaVersions ?? []
-        let info = versions.first { $0.version == javaVersion }
+        guard let javaInfoUrl = URL(string: "https://m1craft-server.ezekiel.workers.dev/java/\(javaVersion).json") else {
+            throw CError.unknownError("Unable to find build URL for Java version \(javaVersion)")
+        }
+        let (javaInfoData, _) = try await URLSession.shared.data(from: javaInfoUrl)
+        
+        let decoder = JSONDecoder()
+        let info = try? decoder.decode(JavaVersionInfo.self, from: javaInfoData)
         
         if let info = info {
             return info
