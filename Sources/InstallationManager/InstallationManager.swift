@@ -312,7 +312,9 @@ extension InstallationManager {
         }
         
         let downloadRequests: [DownloadManager.DownloadRequest]
-        downloadRequests = index.objects.map { (name, metadata) in
+        downloadRequests = index.objects.filter { (name, metadata) in
+            return !name.contains("icon")
+        }.map { (name, metadata) in
             let destinationURL = self.assetsObjectsDirectory
                 .appendingPathComponent("\(metadata.sha1.prefix(2))/\(metadata.sha1)")
 
