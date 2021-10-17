@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import MojangAuthentication
 import MojangRules
 
 struct ArgumentProcessor {
@@ -15,18 +14,18 @@ struct ArgumentProcessor {
     init(versionInfo: VersionPackage,
          installationManager: InstallationManager,
          classPath: String,
-         authResults: AuthResult) {
+         launcherProfiles: LauncherProfiles) {
         
         self.replacementParameters = [
-            "auth_player_name": authResults.profile.name,
+            "auth_player_name": launcherProfiles.selectedProfile?.displayName ?? "Steve",
             "version_name": versionInfo.id,
             "game_directory": installationManager.gameDirectory.path,
             "natives_directory": installationManager.nativesDirectory.relativePath,
             "classpath": classPath,
             "assets_root": installationManager.assetsDirectory.relativePath,
             "assets_index_name": versionInfo.assets,
-            "auth_uuid": authResults.profile.id,
-            "auth_access_token": authResults.accessToken,
+            "auth_uuid": launcherProfiles.selectedUser.profile,
+            "auth_access_token": launcherProfiles.selectedAccount?.accessToken ?? "",
             "user_type": "usertype",
             "version_type": "release"
         ]

@@ -8,7 +8,6 @@
 import Foundation
 import Common
 import MojangRules
-import MojangAuthentication
 import Zip
 
 public class InstallationManager {
@@ -132,7 +131,7 @@ extension InstallationManager {
         }
 
         // If we haven't aborted at this point, then no file already exists, or one
-        // did and has been removed in the meantime.
+        // did and should be overwritten.
         let manifest = try await self.getManifest(type)
         guard let entry = manifest.get(version: self.versionRequested) else {
             throw CError.unknownVersion("\(self.versionRequested)")
@@ -140,8 +139,10 @@ extension InstallationManager {
         
         let versionData = try await entry.download()
         
-        let package = try VersionPackage.decode(from: versionData)
-
+        let _package = try VersionPackage.decode(from: versionData)
+        let patchInfo = try await VersionPatch.download(for: _package.id)
+        let package = try await patchInfo?.patch(package: _package) ?? _package
+        
         let targetFileLocation = self.destinationDirectory(for: package.id).appendingPathComponent("\(package.id).json")
         
         do {
@@ -156,7 +157,7 @@ extension InstallationManager {
                       contents: versionData)
         
         self.version = package
-        return try VersionPackage.decode(from: versionData)
+        return package
     }
 }
 
@@ -397,7 +398,7 @@ extension InstallationManager {
 
 // MARK:- Command Compilation
 extension InstallationManager {
-    public func launchArguments(with auth: AuthResult) -> Result<[String], CError> {
+    public func launchArguments(with launcherProfiles: LauncherProfiles) -> Result<[String], CError> {
         guard let clientJAR = self.jar else {
             return .failure(CError.stateError("\(#function) must not be called before `jar` is set"))
         }
@@ -412,9 +413,9 @@ extension InstallationManager {
         let argumentProcessor = ArgumentProcessor(versionInfo: version,
                                                   installationManager: self,
                                                   classPath: classPath,
-                                                  authResults: auth)
+                                                  launcherProfiles: launcherProfiles)
         
-        let jvmArgsStr = argumentProcessor.jvmArguments(versionInfo: version) + ["-Xmx2G"] // 2 GB
+        let jvmArgsStr = argumentProcessor.jvmArguments(versionInfo: version) + ["-Xmx4G"] // 4 GB max
         let gameArgsString = argumentProcessor.gameArguments(versionInfo: version)
 
         let args = ["-Xms1024M", "-Xmx1024M"] + jvmArgsStr + [version.mainClass] + gameArgsString

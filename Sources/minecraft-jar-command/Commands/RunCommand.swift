@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import MojangAuthentication
 import ArgumentParser
 import Common
 import InstallationManager
@@ -72,31 +71,13 @@ struct RunCommand: ParsableCommand {
      */
     
     mutating func run() async throws {
-//        if !FileManager.default.fileExists(atPath: javaExecutable) {
-//            print("You must install Java 8")
-//            print("Recommended: Azul Zulu Java 8 LTS")
-//            print("https://www.azul.com/downloads/?version=java-8-lts&os=macos&architecture=arm-64-bit&package=jdk")
-//            print("Expected Java location: \(javaExecutable)")
-//            MainCommand.exit()
-//        }
+        let launcherProfilesURL = FileManager
+            .default
+            .homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/minecraft/launcher_profiles.json")
+        let launcherProfilesData = try! Data(contentsOf: launcherProfilesURL)
+        let launcherProfiles = try! JSONDecoder().decode(LauncherProfiles.self, from: launcherProfilesData)
         
-        let defaults = UserDefaults.standard
-        
-        guard let accessToken = defaults.string(forKey: "accessToken") else {
-            print("Please run the login command with the --save-credentials flag to save a new access token")
-            MainCommand.exit()
-        }
-        guard let clientToken = defaults.string(forKey: "clientToken") else {
-            print("Please run the login command with the --save-credentials flag to save a new client token")
-            MainCommand.exit()
-        }
-        
-        let auth = AuthResult(accessToken: accessToken, clientToken: clientToken, profile: Profile(name: "ezfe", id: "1e6e79ca12a64a25ae0535cfa0ae576d"))
-//        let auth = try AuthenticationManager.refresh(accessToken: accessToken, clientToken: clientToken)
-        
-//        defaults.set(auth.clientToken, forKey: "clientToken")
-//        defaults.set(auth.accessToken, forKey: "accessToken")
-
         let manifestUrl: VersionManifest.ManifestUrls
         if mojangManifest {
             manifestUrl = .mojang
@@ -172,7 +153,7 @@ struct RunCommand: ParsableCommand {
         
         try installationManager.copyNatives()
         
-        let launchArgumentsResults = installationManager.launchArguments(with: auth)
+        let launchArgumentsResults = installationManager.launchArguments(with: launcherProfiles)
         switch launchArgumentsResults {
             case .success(let args):
                 // java

@@ -46,6 +46,7 @@ public struct VersionPatch: Decodable {
     
     public func patch(package: VersionPackage) async throws -> VersionPackage {
         var writablePackage = package
+        writablePackage.time = Date()
         if let newClientURL = self.clientJarURL {
             try await VersionPatch.editURL(resource: &writablePackage.downloads.client, newURL: newClientURL)
         }

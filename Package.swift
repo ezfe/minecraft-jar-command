@@ -13,7 +13,6 @@ let package = Package(
             name: "minecraft-jar-command",
             targets: ["minecraft-jar-command"]
         ),
-        .library(name: "MojangAuthentication", targets: ["MojangAuthentication"]),
         .library(name: "InstallationManager", targets: ["InstallationManager"])
     ],
     dependencies: [
@@ -29,7 +28,6 @@ let package = Package(
             name: "minecraft-jar-command",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                .target(name: "MojangAuthentication"),
                 .target(name: "InstallationManager"),
                 .target(name: "Backblaze")
             ]
@@ -41,12 +39,6 @@ let package = Package(
                 .product(name: "Crypto", package: "swift-crypto"),
                 .target(name: "Common"),
                 .target(name: "MojangRules")
-            ]
-        ),
-        .target(
-            name: "MojangAuthentication",
-            dependencies: [
-                .target(name: "Common")
             ]
         ),
         .target(
