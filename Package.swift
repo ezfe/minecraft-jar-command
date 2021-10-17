@@ -28,8 +28,7 @@ let package = Package(
             name: "minecraft-jar-command",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                .target(name: "InstallationManager"),
-                .target(name: "Backblaze")
+                .target(name: "InstallationManager")
             ]
         ),
         .target(
@@ -45,12 +44,6 @@ let package = Package(
             name: "MojangRules",
             dependencies: [
 
-            ]
-        ),
-        .target(
-            name: "Backblaze",
-            dependencies: [
-            
             ]
         ),
         .target(

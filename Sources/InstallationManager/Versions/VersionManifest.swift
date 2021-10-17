@@ -42,8 +42,6 @@ public struct VersionManifest: Codable {
 public extension VersionManifest {
     enum ManifestUrls: String {
         case mojang = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
-        case legacyCustom = "https://f001.backblazeb2.com/file/com-ezekielelin-publicFiles/lwjgl-arm/version_manifest_v2.json"
-        case backblaze = "https://f001.backblazeb2.com/file/minecraft-jar-command/version_manifest.json"
     }
     
     static func downloadManifest(_ type: ManifestUrls) async throws -> VersionManifest {
