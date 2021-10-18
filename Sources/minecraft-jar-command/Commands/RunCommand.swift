@@ -6,11 +6,11 @@
 //
 
 import Foundation
-import ArgumentParser
+//import ArgumentParser
 import Common
 import InstallationManager
 
-struct RunCommand: ParsableCommand {
+struct RunCommand {//: ParsableCommand {
     static var configuration = CommandConfiguration(
         commandName: "run",
         abstract: "Run Minecraft"

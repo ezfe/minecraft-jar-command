@@ -8,7 +8,6 @@
 import Foundation
 import MojangRules
 import Common
-import ArgumentParser
 
 /**
  * A file that describes a specific Minecraft version, and includes information
