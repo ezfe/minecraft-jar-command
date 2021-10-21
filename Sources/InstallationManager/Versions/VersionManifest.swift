@@ -64,10 +64,21 @@ public extension VersionManifest {
 // MARK: Get Version
 
 public extension VersionManifest {
-    enum VersionType {
+    enum VersionType: Hashable {
         case release
         case snapshot
         case custom(String)
+        
+        public func hash(into hasher: inout Hasher) {
+            switch self {
+                case .release:
+                    hasher.combine("release_unspecified")
+                case .snapshot:
+                    hasher.combine("snapshot_unspecified")
+                case .custom(let version):
+                    hasher.combine("custom_\(version)")
+            }
+        }
     }
     
     func get(version: VersionType) -> VersionManifest.VersionMetadata? {
