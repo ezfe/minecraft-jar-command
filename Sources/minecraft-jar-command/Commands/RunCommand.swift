@@ -71,12 +71,22 @@ struct RunCommand: ParsableCommand {
      */
     
     mutating func run() async throws {
-        let launcherProfilesURL = FileManager
-            .default
-            .homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/minecraft/launcher_profiles.json")
-        let launcherProfilesData = try! Data(contentsOf: launcherProfilesURL)
-        let launcherProfiles = try! JSONDecoder().decode(LauncherProfiles.self, from: launcherProfilesData)
+        let launcherProfiles = LauncherProfiles(
+            authenticationDatabase: [
+                "96c9c646cd224c29ba573fc49483577f": LauncherProfiles.AuthenticationDatabaseEntry(
+                    accessToken: "accesstoken",
+                    profiles: [
+                        "1e6e79ca12a64a25ae0535cfa0ae576d": "ezekielelin@me.com"
+                    ],
+                    username: "ezfe"
+                )
+            ],
+            clientToken: "clienttoken",
+            selectedUser: LauncherProfiles.SelectedUser(
+                account: "96c9c646cd224c29ba573fc49483577f",
+                profile: "1e6e79ca12a64a25ae0535cfa0ae576d"
+            )
+        )
         
         let gameDirectory = self.gameDirectory != nil ? URL(fileURLWithPath: self.gameDirectory!) : nil
         
