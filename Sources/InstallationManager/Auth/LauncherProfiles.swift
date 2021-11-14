@@ -9,7 +9,7 @@ import Foundation
 
 public struct SignInResult {
     let id: String
-    let name: String
+    public let name: String
     let token: String
     
     public init(id: String, name: String, token: String) {
