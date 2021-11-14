@@ -14,18 +14,18 @@ struct ArgumentProcessor {
     init(versionInfo: VersionPackage,
          installationManager: InstallationManager,
          classPath: String,
-         launcherProfiles: LauncherProfiles) {
+         credentials: SignInResult) {
         
         self.replacementParameters = [
-            "auth_player_name": launcherProfiles.selectedProfile?.displayName ?? "Steve",
+            "auth_player_name": credentials.name,
             "version_name": versionInfo.id,
             "game_directory": installationManager.gameDirectory.path,
             "natives_directory": installationManager.nativesDirectory.relativePath,
             "classpath": classPath,
             "assets_root": installationManager.assetsDirectory.relativePath,
             "assets_index_name": versionInfo.assets,
-            "auth_uuid": launcherProfiles.selectedUser.profile,
-            "auth_access_token": launcherProfiles.selectedAccount?.accessToken ?? "",
+            "auth_uuid": credentials.id,
+            "auth_access_token": credentials.token,
             "user_type": "usertype",
             "version_type": "release"
         ]
