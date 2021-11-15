@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "minecraft-jar-command",
     platforms: [
-        .macOS("12")
+        .macOS("11")
     ],
     products: [
         .library(name: "InstallationManager", targets: ["InstallationManager"])
