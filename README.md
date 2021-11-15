@@ -1,4 +1,4 @@
-# Apple M1 Minecraft Launcher
+# minecraft-jar-command
 ---
 
 This project now exists with a UI and has proper support for Microsoft accounts: https://github.com/ezfe/m1craft
