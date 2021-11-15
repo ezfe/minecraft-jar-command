@@ -7,14 +7,16 @@
 
 import Foundation
 
-public struct SignInResult {
-    let id: String
+public struct SignInResult: Decodable {
+    public let id: String
     public let name: String
-    let token: String
+    public let token: String
+    public let refresh: String
     
-    public init(id: String, name: String, token: String) {
+    public init(id: String, name: String, token: String, refresh: String) {
         self.id = id
         self.name = name
         self.token = token
+        self.refresh = refresh
     }
 }
