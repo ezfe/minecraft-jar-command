@@ -8,7 +8,6 @@
 import Foundation
 
 public enum CError: Error {
-    case mojangErorr(YggdrasilError)
     case networkError(String)
     case encodingError(String)
     case decodingError(String)
@@ -21,8 +20,6 @@ public enum CError: Error {
     
     public var errorText: String {
         switch self {
-            case .mojangErorr(let e):
-                return e.description
             case .decodingError(let s):
                 return "Decoding Error: \(s)"
             case .encodingError(let s):
@@ -40,14 +37,5 @@ public enum CError: Error {
             case .unknownError(let s):
                 return "Unknown Error: \(s)"
         }
-    }
-}
-
-public struct YggdrasilError: Decodable, CustomStringConvertible {
-    let error: String
-    let errorMessage: String
-    
-    public var description: String {
-        return "\(error): \(errorMessage)"
     }
 }
