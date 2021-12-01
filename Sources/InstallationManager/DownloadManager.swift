@@ -32,18 +32,27 @@ actor DownloadManager {
             print("==== Starting Download Batch : \(batchName) ====")
         }
         
-        await withTaskGroup(of: UInt.self) { group in
+        try await withThrowingTaskGroup(of: Result<UInt, CError>.self) { group in
             for request in batch {
                 group.addTask {
-                    try! await self.download(request)
-                    return request.source.size
+                    do {
+                        try await self.download(request)
+                    } catch let error {
+                        return .failure(.networkError(error.localizedDescription))
+                    }
+                    return .success(request.source.size)
                 }
             }
             
-            for await sizeDone in group {
-                currentTotal += sizeDone
-                if let progress = progress {
-                    progress(Double(currentTotal) / Double(totalSize))
+            for try await sizeResult in group {
+                switch sizeResult {
+                    case .success(let sizeDone):
+                        currentTotal += sizeDone
+                        if let progress = progress {
+                            progress(Double(currentTotal) / Double(totalSize))
+                        }
+                    case .failure(let error):
+                        throw error
                 }
             }
         }
