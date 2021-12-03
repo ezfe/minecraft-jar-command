@@ -101,6 +101,8 @@ extension InstallationManager {
         // Check if the file exists on the local file system, and if it does
         // try to decode it as a version package. Lastly, verify that the
         // version package matches the requested version.
+        // TODO: This breaks 1.17.1 since it's now a "custom" version and this code causes unknown issues
+        /*
         switch versionRequested {
             case .custom(let versionString):
                 let targetFileLocation = self.destinationDirectory(for: versionString).appendingPathComponent("\(versionString).json")
@@ -129,6 +131,7 @@ extension InstallationManager {
             default:
                 break
         }
+         */
 
         // If we haven't aborted at this point, then no file already exists, or one
         // did and should be overwritten.
