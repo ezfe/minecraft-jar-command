@@ -7,6 +7,7 @@
 
 import Foundation
 import Common
+import MojangRules
 
 public struct VersionPatch: Decodable {
     let id: String
@@ -53,6 +54,12 @@ public struct VersionPatch: Decodable {
         
         writablePackage.libraries = []
         for library in package.libraries {
+            if let rules = library.rules {
+                if !RuleProcessor.verifyRulesPass(rules, with: .none) {
+                    continue
+                }
+            }
+            
             let libNameComponents = library.name.split(separator: ":")
             let libOrg = libNameComponents[0]
             let libName = String(libNameComponents[1])
