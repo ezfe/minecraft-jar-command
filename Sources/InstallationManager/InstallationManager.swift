@@ -31,18 +31,29 @@ public class InstallationManager {
     public private(set) var javaBundle: URL? = nil
     public private(set) var libraryMetadata: [LibraryMetadata] = []
     
-    public convenience init(requestedDirectory: URL, gameDirectory: URL? = nil) throws {
-        try self.init(baseDirectory: requestedDirectory, gameDirectory: gameDirectory)
-    }
-    
-    public convenience init(gameDirectory: URL? = nil) throws {
-        let temporaryDirectory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-        let baseDirectory = temporaryDirectory.appendingPathComponent("minecraft-jar-command", isDirectory: true)
+    public convenience init(baseDirectory: URL? = nil, gameDirectory: URL? = nil) throws {        
+        let applicationSupportDirectory = FileManager
+            .default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)
+            .first
+        guard let applicationSupportDirectory = applicationSupportDirectory else {
+            throw CError.filesystemError("No Application Support directory found for current user")
+        }
+
+        let defaultGameDirectory = applicationSupportDirectory
+            .appendingPathComponent("minecraft")
+            .absoluteURL
+        let defaultBaseDirectory = applicationSupportDirectory
+            .appendingPathComponent("minecraft-jar-command")
+            .absoluteURL
         
-        try self.init(baseDirectory: baseDirectory, gameDirectory: gameDirectory)
+        try self.init(
+            baseDirectory: baseDirectory ?? defaultBaseDirectory,
+            gameDirectory: gameDirectory ?? defaultGameDirectory
+        )
     }
     
-    init(baseDirectory: URL, gameDirectory: URL?) throws {
+    init(baseDirectory: URL, gameDirectory: URL) throws {
         let absoluteBase = baseDirectory.absoluteURL
         
         self.baseDirectory = absoluteBase
@@ -52,10 +63,7 @@ public class InstallationManager {
         self.assetsObjectsDirectory = self.assetsDirectory.appendingPathComponent("objects", isDirectory: true)
         self.assetsIndexesDirectory = self.assetsDirectory.appendingPathComponent("indexes", isDirectory: true)
         
-        let defaultGameDirectory = URL(fileURLWithPath: NSHomeDirectory())
-            .appendingPathComponent("Library/Application Support/minecraft")
-            .absoluteURL
-        self.gameDirectory = gameDirectory ?? defaultGameDirectory
+        self.gameDirectory = gameDirectory
         
         try createDirectories()
     }
