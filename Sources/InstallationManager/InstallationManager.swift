@@ -414,7 +414,7 @@ extension InstallationManager {
 
 // MARK:- Command Compilation
 extension InstallationManager {
-    public func launchArguments(with credentials: SignInResult) -> Result<[String], CError> {
+    public func launchArguments(with credentials: SignInResult, memory: UInt8 = 2) -> Result<[String], CError> {
         guard let clientJAR = self.jar else {
             return .failure(CError.stateError("\(#function) must not be called before `jar` is set"))
         }
@@ -431,7 +431,7 @@ extension InstallationManager {
                                                   classPath: classPath,
                                                   credentials: credentials)
         
-        let jvmArgsStr = argumentProcessor.jvmArguments(versionInfo: version) + ["-Xmx4G"] // 4 GB max
+        let jvmArgsStr = argumentProcessor.jvmArguments(versionInfo: version) + ["-Xmx\(memory)G"] // 4 GB max
         let gameArgsString = argumentProcessor.gameArguments(versionInfo: version)
 
         let args = ["-Xms1024M", "-Xmx1024M"] + jvmArgsStr + [version.mainClass] + gameArgsString
