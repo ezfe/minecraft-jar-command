@@ -37,7 +37,7 @@ let package = Package(
         .target(
             name: "Common",
             dependencies: [
-
+                .product(name: "Crypto", package: "swift-crypto"),
             ]
         ),
     ]

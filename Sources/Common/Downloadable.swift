@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Crypto
 
 public protocol Downloadable {
     var url: String { get }
@@ -44,5 +45,43 @@ public extension Downloadable {
         }
             
         return data
+    }
+    
+    func download(to destinationUrl: URL) async throws {
+        let fm = FileManager.default
+        
+        do {
+            if let existingFileData = try? Data(contentsOf: destinationUrl) {
+                let existingSha1 = Insecure.SHA1.hash(data: existingFileData)
+                    .compactMap { String(format: "%02x", $0) }
+                    .joined()
+                
+                if existingSha1.lowercased() == sha1 {
+                    // File exists and SHA1 matches. Abort.
+                    return
+                }
+            }
+            
+            // If the file exists, the SHA1 doesn't match
+            // Try to delete the file
+            if fm.fileExists(atPath: destinationUrl.path) {
+                try fm.removeItem(at: destinationUrl)
+            }
+            
+            // Ensure the directory exists to save the real file in
+            try fm.createDirectory(at: destinationUrl.deletingLastPathComponent(),
+                                   withIntermediateDirectories: true)
+        } catch let err {
+            throw CError.filesystemError(err.localizedDescription)
+        }
+        
+        let data = try await self.download(checkSha1: true)
+        
+        do {
+            try data.write(to: destinationUrl)
+        } catch let err {
+            throw CError.filesystemError(err.localizedDescription)
+        }
+
     }
 }

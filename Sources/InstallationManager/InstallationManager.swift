@@ -13,14 +13,6 @@ import Zip
 public class InstallationManager {
     // MARK: Directories
     public let baseDirectory: URL
-    
-    public let libraryDirectory: URL
-    public let nativesDirectory: URL
-    
-    public let assetsDirectory: URL
-    public let assetsObjectsDirectory: URL
-    public let assetsIndexesDirectory: URL
-    
     public let gameDirectory: URL
     
     // MARK: Installation State
@@ -57,12 +49,6 @@ public class InstallationManager {
         let absoluteBase = baseDirectory.absoluteURL
         
         self.baseDirectory = absoluteBase
-        self.libraryDirectory = URL(fileURLWithPath: "libraries", isDirectory: true, relativeTo: absoluteBase)
-        self.nativesDirectory = URL(fileURLWithPath: "natives", isDirectory: true, relativeTo: absoluteBase)
-        self.assetsDirectory = URL(fileURLWithPath: "assets", isDirectory: true, relativeTo: absoluteBase)
-        self.assetsObjectsDirectory = self.assetsDirectory.appendingPathComponent("objects", isDirectory: true)
-        self.assetsIndexesDirectory = self.assetsDirectory.appendingPathComponent("indexes", isDirectory: true)
-        
         self.gameDirectory = gameDirectory
         
         try createDirectories()
@@ -79,9 +65,29 @@ public class InstallationManager {
     }
 }
 
-// MARK:- Version Management
+// MARK: - Computed Directories
 extension InstallationManager {
-    func destinationDirectory(for version: String) -> URL {
+    public var libraryDirectory: URL {
+        URL(fileURLWithPath: "libraries", isDirectory: true, relativeTo: self.baseDirectory.absoluteURL)
+    }
+    public var nativesDirectory: URL {
+        URL(fileURLWithPath: "natives", isDirectory: true, relativeTo: self.baseDirectory.absoluteURL)
+    }
+    
+    public var assetsDirectory: URL {
+        URL(fileURLWithPath: "assets", isDirectory: true, relativeTo: self.baseDirectory.absoluteURL)
+    }
+    public var assetsObjectsDirectory: URL {
+        self.assetsDirectory.appendingPathComponent("objects", isDirectory: true)
+    }
+    public var assetsIndexesDirectory: URL {
+        self.assetsDirectory.appendingPathComponent("indexes", isDirectory: true)
+    }
+}
+
+// MARK: - Version Management
+extension InstallationManager {
+    func directory(for version: String) -> URL {
         return URL(fileURLWithPath: "versions/\(version)", relativeTo: self.baseDirectory)
     }
     
@@ -154,7 +160,7 @@ extension InstallationManager {
         let patchInfo = try await VersionPatch.download(for: _package.id)
         let package = try await patchInfo?.patch(package: _package) ?? _package
         
-        let targetFileLocation = self.destinationDirectory(for: package.id).appendingPathComponent("\(package.id).json")
+        let targetFileLocation = self.directory(for: package.id).appendingPathComponent("\(package.id).json")
         
         do {
             if fm.fileExists(atPath: targetFileLocation.path) {
@@ -172,7 +178,7 @@ extension InstallationManager {
     }
 }
 
-// MARK:- JAR Management
+// MARK: - JAR Management
 
 extension InstallationManager {
     public func downloadJar() async throws {
@@ -180,19 +186,15 @@ extension InstallationManager {
             throw CError.stateError("\(#function) must not be called before `version` is set")
         }
         
-        let destinationURL = self.destinationDirectory(for: version.id).appendingPathComponent("\(version.id).jar")
+        let destinationURL = self.directory(for: version.id).appendingPathComponent("\(version.id).jar")
         
-        let request = DownloadManager.DownloadRequest(taskName: "Client JAR File",
-                                                      source: version.downloads.client,
-                                                      destinationURL: destinationURL)
+        try await version.downloads.client.download(to: destinationURL)
         
-        let downloader = DownloadManager(request)
-        try await downloader.download()
         self.jar = destinationURL
     }
 }
 
-// MARK:- Library management
+// MARK: - Library management
 
 extension InstallationManager {
     func processArtifact(libraryInfo: VersionPackage.Library) throws -> LibraryMetadata? {
@@ -278,7 +280,7 @@ extension InstallationManager {
     }
 }
 
-// MARK: Native Management
+// MARK: - Native Management
 
 extension InstallationManager {
     public func copyNatives() throws {
@@ -293,7 +295,7 @@ extension InstallationManager {
     }
 }
 
-// MARK:- Asset Management
+// MARK: - Asset Management
 
 extension InstallationManager {
     public func downloadAssets(progress: @escaping (Double) -> Void = { _ in }) async throws {
@@ -343,7 +345,7 @@ extension InstallationManager {
     }
 }
 
-// MARK:- Java Version Management
+// MARK: - Java Version Management
 extension InstallationManager {
     func javaVersionDirectory() -> URL {
         return URL(fileURLWithPath: "runtimes", relativeTo: self.baseDirectory)
@@ -386,12 +388,7 @@ extension InstallationManager {
         
         let javaVersionInfo = try await javaVersionInfo(type)
 
-        let request = DownloadManager.DownloadRequest(taskName: "Java Runtime",
-                                                      source: javaVersionInfo,
-                                                      destinationURL: temporaryDestinationURL)
-        
-        let downloader = DownloadManager(request)
-        try await downloader.download()
+        try await javaVersionInfo.download(to: temporaryDestinationURL)
         
         print("Finished downloading the java runtime")
         do {
@@ -412,7 +409,7 @@ extension InstallationManager {
     }
 }
 
-// MARK:- Command Compilation
+// MARK: - Command Compilation
 extension InstallationManager {
     public func launchArguments(with credentials: SignInResult, memory: UInt8 = 2) -> Result<[String], CError> {
         guard let clientJAR = self.jar else {

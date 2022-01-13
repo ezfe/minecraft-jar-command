@@ -36,7 +36,7 @@ actor DownloadManager {
             for request in batch {
                 group.addTask {
                     do {
-                        try await self.download(request)
+                        try await request.download()
                     } catch let error {
                         return .failure(.networkError(error.localizedDescription))
                     }
@@ -61,45 +61,6 @@ actor DownloadManager {
             print("==== Finished Download Batch : \(batchName) ====")
         }
     }
-
-    func verifySha1(localURL: URL, sha1: String?, fm: FileManager) -> Bool {
-        if fm.fileExists(atPath: localURL.path) {
-            if let fileData = fm.contents(atPath: localURL.path) {
-                let foundSha1 = Insecure.SHA1.hash(data: fileData).compactMap { String(format: "%02x", $0) }.joined()
-                if foundSha1.lowercased() == sha1 {
-                    return true
-                }
-            }
-        }
-        return false
-    }
-    
-    private func download(_ request: DownloadRequest) async throws {
-        let fm = FileManager.default
-
-        do {
-            if verifySha1(localURL: request.destinationURL, sha1: request.source.sha1, fm: fm) {
-                return
-            } else {
-                if fm.fileExists(atPath: request.destinationURL.path) {
-                    try fm.removeItem(at: request.destinationURL)
-                }
-                try fm.createDirectory(at: request.destinationURL.deletingLastPathComponent(),
-                                       withIntermediateDirectories: true)
-                // continuing on to download file
-            }
-        } catch let err {
-            throw CError.filesystemError(err.localizedDescription)
-        }
-        
-        let data = try await request.source.download()
-        
-        do {
-            try data.write(to: request.destinationURL)
-        } catch let err {
-            throw CError.filesystemError(err.localizedDescription)
-        }
-    }
 }
 
 extension DownloadManager {
@@ -117,6 +78,10 @@ extension DownloadManager {
             self.source = source
             self.destinationURL = destinationURL
             self.verbose = verbose
+        }
+        
+        internal func download() async throws {
+            try await source.download(to: destinationURL)
         }
     }
 }
