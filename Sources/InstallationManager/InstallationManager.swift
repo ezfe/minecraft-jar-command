@@ -19,7 +19,6 @@ public class InstallationManager {
     public private(set) var versionRequested: VersionManifest.VersionType = .release
     public private(set) var manifests: [VersionManifest.ManifestUrls: VersionManifest] = [:]
     public private(set) var version: VersionPackage? = nil
-    public private(set) var jar: URL? = nil
     public private(set) var javaBundle: URL? = nil
     public private(set) var libraryMetadata: [LibraryMetadata] = []
     
@@ -150,7 +149,7 @@ extension InstallationManager {
         // If we haven't aborted at this point, then no file already exists, or one
         // did and should be overwritten.
         let manifest = try await self.getManifest(type)
-        guard let entry = manifest.get(version: self.versionRequested) else {
+        guard let entry = manifest.metadata(for: self.versionRequested) else {
             throw CError.unknownVersion("\(self.versionRequested)")
         }
         
@@ -181,16 +180,18 @@ extension InstallationManager {
 // MARK: - JAR Management
 
 extension InstallationManager {
-    public func downloadJar() async throws {
-        guard let version = self.version else {
-            throw CError.stateError("\(#function) must not be called before `version` is set")
+    public func downloadJar(for version: VersionManifest.VersionType) async throws -> URL {
+        guard let metadata = try await self.getManifest(.mojang).metadata(for: version) else {
+            throw CError.unknownVersion("\(version)")
         }
         
-        let destinationURL = self.directory(for: version.id).appendingPathComponent("\(version.id).jar")
+        let package = try await metadata.package()
+
+        let destinationURL = self.directory(for: package.id).appendingPathComponent("\(package.id).jar")
         
-        try await version.downloads.client.download(to: destinationURL)
+        try await package.downloads.client.download(to: destinationURL)
         
-        self.jar = destinationURL
+        return destinationURL
     }
 }
 
@@ -411,17 +412,15 @@ extension InstallationManager {
 
 // MARK: - Command Compilation
 extension InstallationManager {
-    public func launchArguments(with credentials: SignInResult, memory: UInt8 = 2) -> Result<[String], CError> {
-        guard let clientJAR = self.jar else {
-            return .failure(CError.stateError("\(#function) must not be called before `jar` is set"))
-        }
-        
+    public func launchArguments(with credentials: SignInResult,
+                                clientJar: URL,
+                                memory: UInt8 = 2) -> Result<[String], CError> {
         guard let version = self.version else {
             return .failure(CError.stateError("\(#function) must not be called before `version` is set"))
         }
 
         let librariesClassPath = self.libraryMetadata.map { $0.localURL.relativePath }.joined(separator: ":")
-        let classPath = "\(librariesClassPath):\(clientJAR.relativePath)"
+        let classPath = "\(librariesClassPath):\(clientJar.relativePath)"
 
         let argumentProcessor = ArgumentProcessor(versionInfo: version,
                                                   installationManager: self,

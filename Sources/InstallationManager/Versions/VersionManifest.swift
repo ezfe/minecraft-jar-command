@@ -29,6 +29,18 @@ public struct VersionManifest: Codable {
             self.sha1 = sha1
         }
 
+        func package() async throws -> VersionPackage {
+            let packageData = try await self.download()
+            
+            let package = try VersionPackage.decode(from: packageData)
+            let patchInfo = try await VersionPatch.download(for: self.id)
+
+            if let patchInfo = patchInfo {
+                return try await patchInfo.patch(package: package)
+            } else {
+                return package
+            }
+        }
     }
     
     public struct Latest: Codable {
@@ -81,7 +93,7 @@ public extension VersionManifest {
         }
     }
     
-    func get(version: VersionType) -> VersionManifest.VersionMetadata? {
+    func metadata(for version: VersionType) -> VersionManifest.VersionMetadata? {
         let versionString: String
         switch version {
             case .release:
@@ -96,5 +108,4 @@ public extension VersionManifest {
             return versionEntry.id == versionString
         })
     }
-    
 }
