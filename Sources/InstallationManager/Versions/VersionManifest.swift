@@ -14,9 +14,9 @@ public struct VersionManifest: Codable {
     
     public struct VersionMetadata: Codable, Downloadable {
         public let id: String
-        let type: String
-        let time: Date
-        let releaseTime: Date
+        public let type: String
+        public let time: Date
+        public let releaseTime: Date
         public let url: String
         public let sha1: String
         
