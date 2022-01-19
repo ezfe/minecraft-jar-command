@@ -29,7 +29,7 @@ public struct VersionManifest: Codable {
             self.sha1 = sha1
         }
 
-        func package(patched: Bool) async throws -> VersionPackage {
+        public func package(patched: Bool) async throws -> VersionPackage {
             let packageData = try await self.download()
             
             let package = try VersionPackage.decode(from: packageData)
