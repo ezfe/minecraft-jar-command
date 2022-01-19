@@ -10,15 +10,12 @@ import Common
 import MojangRules
 import Zip
 
-public class InstallationManager {
+public class InstallationManager: ObservableObject {
     // MARK: Directories
     public let baseDirectory: URL
     public let gameDirectory: URL
     
     // MARK: Installation State
-    public private(set) var versionRequested: VersionManifest.VersionType = .release
-    public private(set) var manifests: [VersionManifest.ManifestUrls: VersionManifest] = [:]
-    public private(set) var version: VersionPackage? = nil
     public private(set) var javaBundle: URL? = nil
     public private(set) var libraryMetadata: [LibraryMetadata] = []
     
@@ -90,107 +87,40 @@ extension InstallationManager {
         return URL(fileURLWithPath: "versions/\(version)", relativeTo: self.baseDirectory)
     }
     
-    func getManifest(_ type: VersionManifest.ManifestUrls) async throws -> VersionManifest {
-        if let manifest = self.manifests[type] {
-            return manifest
-        } else {
-            let manifest = try await VersionManifest.downloadManifest(type)
-            self.manifests[type] = manifest
-            return manifest
-        }
-    }
-    
-    public func availableVersions(_ type: VersionManifest.ManifestUrls) async throws -> [VersionManifest.VersionMetadata] {
-        return try await self.getManifest(type).versions
-    }
-
-    public func use(version: VersionManifest.VersionType) {
-        self.versionRequested = version
-    }
-    
-    public func downloadVersionInfo(_ type: VersionManifest.ManifestUrls) async throws -> VersionPackage {
-        let fm = FileManager.default
-
-        // Check if the file exists on the local file system, and if it does
-        // try to decode it as a version package. Lastly, verify that the
-        // version package matches the requested version.
-        // TODO: This breaks 1.17.1 since it's now a "custom" version and this code causes unknown issues
-        /*
-        switch versionRequested {
-            case .custom(let versionString):
-                let targetFileLocation = self.destinationDirectory(for: versionString).appendingPathComponent("\(versionString).json")
-                
-                do {
-                    try fm.createDirectory(at: targetFileLocation.deletingLastPathComponent(),
-                                           withIntermediateDirectories: true)
-                } catch let err {
-                    throw CError.filesystemError(err.localizedDescription)
-                }
-                if fm.fileExists(atPath: targetFileLocation.path) {
-                    if let versionData = fm.contents(atPath: targetFileLocation.path) {
-                        let versionPackage = try? VersionPackage.decode(from: versionData)
-                        
-                        if let versionPackage = versionPackage {
-                            if versionPackage.id == versionString {
-                                self.version = versionPackage
-                                return versionPackage
-                            } else {
-                                // else continue on as if the versionData didn't
-                                // decode properly
-                            }
-                        }
-                    }
-                }
-            default:
-                break
-        }
-         */
-
-        // If we haven't aborted at this point, then no file already exists, or one
-        // did and should be overwritten.
-        let manifest = try await self.getManifest(type)
-        guard let entry = manifest.metadata(for: self.versionRequested) else {
-            throw CError.unknownVersion("\(self.versionRequested)")
-        }
-        
-        let versionData = try await entry.download()
-        
-        let _package = try VersionPackage.decode(from: versionData)
-        let patchInfo = try await VersionPatch.download(for: _package.id)
-        let package = try await patchInfo?.patch(package: _package) ?? _package
-        
-        let targetFileLocation = self.directory(for: package.id).appendingPathComponent("\(package.id).json")
-        
-        do {
-            if fm.fileExists(atPath: targetFileLocation.path) {
-                try fm.removeItem(at: targetFileLocation)
-            }
-        } catch let err {
-            throw CError.filesystemError(err.localizedDescription)
-        }
-        
-        fm.createFile(atPath: targetFileLocation.path,
-                      contents: versionData)
-        
-        self.version = package
-        return package
-    }
+//    public func package(for version: VersionManifest.VersionType) async throws -> VersionPackage {
+//        let manifest = try await VersionManifest.download()
+//        let metadata = try manifest.metadata(for: version)
+//
+//        let package = try await metadata.package(patched: true)
+//
+//        let targetFileLocation = self.directory(for: package.id).appendingPathComponent("\(package.id).json")
+//
+//        let encoder = JSONEncoder()
+//        encoder.dateEncodingStrategy = .iso8601
+//
+//        let data: Data
+//        do {
+//            data = try encoder.encode(package)
+//        } catch let err {
+//            throw CError.encodingError(err.localizedDescription)
+//        }
+//
+//        do {
+//            try data.write(to: targetFileLocation)
+//        } catch let err {
+//            throw CError.filesystemError(err.localizedDescription)
+//        }
+//
+//        return package
+//    }
 }
 
 // MARK: - JAR Management
 
 extension InstallationManager {
-    public func downloadJar(for version: VersionManifest.VersionType) async throws -> URL {
-        guard let metadata = try await self.getManifest(.mojang).metadata(for: version) else {
-            throw CError.unknownVersion("\(version)")
-        }
-        
-        let package = try await metadata.package()
-
-        let destinationURL = self.directory(for: package.id).appendingPathComponent("\(package.id).jar")
-        
-        try await package.downloads.client.download(to: destinationURL)
-        
+    public func downloadJar(for version: VersionPackage) async throws -> URL {
+        let destinationURL = self.directory(for: version.id).appendingPathComponent("\(version.id).jar")
+        try await version.downloads.client.download(to: destinationURL)
         return destinationURL
     }
 }
@@ -211,7 +141,6 @@ extension InstallationManager {
     }
 
     func processClassifier(libraryInfo: VersionPackage.Library) throws -> LibraryMetadata? {
-
         guard let nativesMappingDictionary = libraryInfo.natives,
               let nativesMappingKey = nativesMappingDictionary.osx else {
             // Failures here are acceptable and need not be logged
@@ -233,27 +162,19 @@ extension InstallationManager {
         return LibraryMetadata(localURL: destinationURL, isNative: true, downloadRequest: request)
     }
 
-    func downloadLibrary(libraryInfo: VersionPackage.Library) throws -> [LibraryMetadata] {
-        if let rules = libraryInfo.rules {
-            if !RuleProcessor.verifyRulesPass(rules, with: .none) {
-                return []
-            }
-        }
-
-        let libmetadata = try processArtifact(libraryInfo: libraryInfo)
-        let nativemetadata = try processClassifier(libraryInfo: libraryInfo)
-
-        return [libmetadata, nativemetadata].compactMap { $0 }
-    }
-    
-    func createLibraryMetadata() -> Result<[LibraryMetadata], CError> {
-        guard let version = self.version else {
-            return .failure(CError.stateError("\(#function) must not be called before `version` is set"))
-        }
-
+    func createLibraryMetadata(for version: VersionPackage) async throws -> Result<[LibraryMetadata], CError> {
         do {
-            let libraryMetadata = try version.libraries.compactMap {
-                try downloadLibrary(libraryInfo: $0)
+            let libraryMetadata = try version.libraries.compactMap { libraryInfo -> [LibraryMetadata] in
+                if let rules = libraryInfo.rules {
+                    if !RuleProcessor.verifyRulesPass(rules, with: .none) {
+                        return []
+                    }
+                }
+
+                let libmetadata = try processArtifact(libraryInfo: libraryInfo)
+                let nativemetadata = try processClassifier(libraryInfo: libraryInfo)
+
+                return [libmetadata, nativemetadata].compactMap { $0 }
             }.joined()
             let arr = Array(libraryMetadata)
             self.libraryMetadata = arr
@@ -267,8 +188,10 @@ extension InstallationManager {
         }
     }
     
-    public func downloadLibraries(progress: @escaping (Double) -> Void = { _ in }) async throws -> [LibraryMetadata] {
-        let libraryMetadataResult = createLibraryMetadata()
+    public func downloadLibraries(for version: VersionPackage,
+                                  progress: @escaping (Double) -> Void = { _ in }) async throws -> [LibraryMetadata] {
+
+        let libraryMetadataResult = try await createLibraryMetadata(for: version)
         switch libraryMetadataResult {
             case .success(let libraryMetadata):
                 let requests = libraryMetadata.map { $0.downloadRequest }
@@ -299,17 +222,11 @@ extension InstallationManager {
 // MARK: - Asset Management
 
 extension InstallationManager {
-    public func downloadAssets(progress: @escaping (Double) -> Void = { _ in }) async throws {
-        guard let version = self.version else {
-            throw CError.stateError("\(#function) must not be called before `version` is set")
-        }
+    public func downloadAssets(for version: VersionPackage,
+                               progress: @escaping (Double) -> Void = { _ in }) async throws {
         
         let assetIndex = version.assetIndex
-        guard let assetIndexURL = URL(string: assetIndex.url) else {
-            throw CError.decodingError("Failed to retrieve asset index URL")
-        }
-
-        let indexData = try await retrieveData(url: assetIndexURL)
+        let indexData = try await assetIndex.download()
          
         let indexJSONFileURL = self.assetsIndexesDirectory.appendingPathComponent("\(assetIndex.id).json")
         do {
@@ -321,6 +238,7 @@ extension InstallationManager {
         let index: AssetsIndex
         do {
             let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
             index = try decoder.decode(AssetsIndex.self, from: indexData)
         } catch let error {
             throw CError.decodingError(error.localizedDescription)
@@ -352,11 +270,7 @@ extension InstallationManager {
         return URL(fileURLWithPath: "runtimes", relativeTo: self.baseDirectory)
     }
     
-    func javaVersionInfo(_ type: VersionManifest.ManifestUrls) async throws -> JavaVersionInfo {
-        guard let version = self.version else {
-            throw CError.stateError("\(#function) must not be called before `version` is set")
-        }
-        
+    func javaVersionInfo(for version: VersionPackage) async throws -> JavaVersionInfo {
         let javaVersion = version.javaVersion?.majorVersion ?? 8
         
         guard let javaInfoUrl = URL(string: "https://m1craft-server.ezekiel.workers.dev/java/\(javaVersion).json") else {
@@ -365,6 +279,7 @@ extension InstallationManager {
         let javaInfoData = try await retrieveData(url: javaInfoUrl)
         
         let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
         let info = try? decoder.decode(JavaVersionInfo.self, from: javaInfoData)
         
         if let info = info {
@@ -374,21 +289,15 @@ extension InstallationManager {
         }
     }
 
-    public func downloadJava(_ type: VersionManifest.ManifestUrls) async throws -> URL {
-        guard let version = self.version else {
-            throw CError.stateError("\(#function) must not be called before `version` is set")
-        }
-        
-        let javaVersion = version.javaVersion?.majorVersion ?? 8
-        
+    public func downloadJava(for version: VersionPackage) async throws -> URL {
+        let javaVersionInfo = try await javaVersionInfo(for: version)
+
         let temporaryDestinationURL = self.javaVersionDirectory()
-            .appendingPathComponent("java-\(javaVersion).zip")
+            .appendingPathComponent("java-\(javaVersionInfo.version).zip")
 
         let bundleDestinationURL = self.javaVersionDirectory()
-            .appendingPathComponent("java-\(javaVersion).bundle")
+            .appendingPathComponent("java-\(javaVersionInfo.version).bundle")
         
-        let javaVersionInfo = try await javaVersionInfo(type)
-
         try await javaVersionInfo.download(to: temporaryDestinationURL)
         
         print("Finished downloading the java runtime")
@@ -412,12 +321,10 @@ extension InstallationManager {
 
 // MARK: - Command Compilation
 extension InstallationManager {
-    public func launchArguments(with credentials: SignInResult,
+    public func launchArguments(for version: VersionPackage,
+                                with credentials: SignInResult,
                                 clientJar: URL,
-                                memory: UInt8 = 2) -> Result<[String], CError> {
-        guard let version = self.version else {
-            return .failure(CError.stateError("\(#function) must not be called before `version` is set"))
-        }
+                                memory: UInt8 = 2) async throws -> Result<[String], CError> {
 
         let librariesClassPath = self.libraryMetadata.map { $0.localURL.relativePath }.joined(separator: ":")
         let classPath = "\(librariesClassPath):\(clientJar.relativePath)"

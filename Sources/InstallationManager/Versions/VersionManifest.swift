@@ -29,11 +29,17 @@ public struct VersionManifest: Codable {
             self.sha1 = sha1
         }
 
-        func package() async throws -> VersionPackage {
+        func package(patched: Bool) async throws -> VersionPackage {
             let packageData = try await self.download()
             
             let package = try VersionPackage.decode(from: packageData)
-            let patchInfo = try await VersionPatch.download(for: self.id)
+            let patchInfo: VersionPatch?
+            
+            if patched {
+                patchInfo = try await VersionPatch.download(for: self.id)
+            } else {
+                patchInfo = nil
+            }
 
             if let patchInfo = patchInfo {
                 return try await patchInfo.patch(package: package)
@@ -52,12 +58,8 @@ public struct VersionManifest: Codable {
 // MARK: Download Manifest
 
 public extension VersionManifest {
-    enum ManifestUrls: String {
-        case mojang = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
-    }
-    
-    static func downloadManifest(_ type: ManifestUrls) async throws -> VersionManifest {
-        let url = URL(string: type.rawValue)!
+    static func download() async throws -> VersionManifest {
+        let url = URL(string: "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")!
         let manifestData = try await retrieveData(url: url)
         
         let decoder = JSONDecoder()
@@ -93,7 +95,7 @@ public extension VersionManifest {
         }
     }
     
-    func metadata(for version: VersionType) -> VersionManifest.VersionMetadata? {
+    func metadata(for version: VersionType) throws -> VersionManifest.VersionMetadata {
         let versionString: String
         switch version {
             case .release:
@@ -104,8 +106,14 @@ public extension VersionManifest {
                 versionString = customString
         }
         
-        return self.versions.first(where: { (versionEntry) in
+        let metadata = self.versions.first(where: { (versionEntry) in
             return versionEntry.id == versionString
         })
+        
+        guard let metadata = metadata else {
+            throw CError.unknownError("\(version)")
+        }
+
+        return metadata
     }
 }
