@@ -17,7 +17,7 @@ public struct VersionPatch: Decodable {
     public struct LibraryPatch: Decodable {
         public let newLibraryVersion: String
         public let artifactURL: String
-        public let macOSNativeURL: String
+        public let macOSNativeURL: String?
     }
     
     public static func download(for version: String) async throws -> Self? {
@@ -76,10 +76,12 @@ public struct VersionPatch: Decodable {
                 writableLibrary.downloads.artifact.path = library.downloads.artifact.path
                     .replacingOccurrences(of: libVersion, with: libraryPatch.newLibraryVersion)
                 
-                if let osxKey = library.natives?.osx, let osxClassifier = library.downloads.classifiers?[osxKey] {
+                if let nativePatchUrl = libraryPatch.macOSNativeURL,
+                   let osxKey = library.natives?.osx,
+                   let osxClassifier = library.downloads.classifiers?[osxKey] {
                     var writableClassifier = osxClassifier
                     
-                    try await VersionPatch.editURL(resource: &writableClassifier, newURL: libraryPatch.macOSNativeURL)
+                    try await VersionPatch.editURL(resource: &writableClassifier, newURL: nativePatchUrl)
                     writableClassifier.path = osxClassifier.path
                         .replacingOccurrences(of: libVersion, with: libraryPatch.newLibraryVersion)
                     
