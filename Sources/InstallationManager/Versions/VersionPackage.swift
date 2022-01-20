@@ -174,9 +174,9 @@ extension VersionPackage {
 extension VersionPackage {
     public struct Downloads: Codable {
         public var client: Download
-        public var clientMappings: Download
+        public var clientMappings: Download?
         public var server: Download
-        public var serverMappings: Download
+        public var serverMappings: Download?
         
         public struct Download: Codable, DownloadableAllModifiable {
             public var sha1: String
