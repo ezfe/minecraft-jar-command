@@ -57,9 +57,9 @@ public struct VersionManifest: Codable {
 
 // MARK: Download Manifest
 
+public let MOJANG_MANIFEST_URL = URL(string: "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")!
 public extension VersionManifest {
-    static func download() async throws -> VersionManifest {
-        let url = URL(string: "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")!
+    static func download(url: URL = MOJANG_MANIFEST_URL) async throws -> VersionManifest {
         let manifestData = try await retrieveData(url: url)
         
         let decoder = JSONDecoder()
