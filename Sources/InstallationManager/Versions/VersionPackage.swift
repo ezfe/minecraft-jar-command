@@ -240,7 +240,7 @@ extension VersionPackage {
 
 extension VersionPackage {
     public enum ReleaseType: String, Codable {
-        case release, snapshot
+        case release, snapshot, pending
     }
 }
 
