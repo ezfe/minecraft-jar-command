@@ -12,6 +12,11 @@ public struct VersionManifest: Codable {
     public let latest: Latest
     public var versions: [VersionMetadata]
     
+    public init(versions: [VersionMetadata], latest: Latest) {
+        self.versions = versions
+        self.latest = latest
+    }
+    
     public struct VersionMetadata: Codable, Downloadable, Identifiable {
         public let id: String
         public let type: String
@@ -50,8 +55,13 @@ public struct VersionManifest: Codable {
     }
     
     public struct Latest: Codable {
-        let release: String
-        let snapshot: String
+        public let release: String
+        public let snapshot: String
+        
+        public init(release: String, snapshot: String) {
+            self.release = release
+            self.snapshot = snapshot
+        }
     }
 }
 
