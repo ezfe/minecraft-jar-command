@@ -12,7 +12,7 @@ public struct VersionManifest: Codable {
     public let latest: Latest
     public var versions: [VersionMetadata]
     
-    public struct VersionMetadata: Codable, Downloadable {
+    public struct VersionMetadata: Codable, Downloadable, Identifiable {
         public let id: String
         public let type: String
         public let time: Date
