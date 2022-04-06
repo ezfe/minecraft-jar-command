@@ -23,7 +23,7 @@ public struct VersionManifest: Codable {
         }
         
         for metadata in self.versions {
-            if metadata.id != self.latest.snapshot || metadata.id != self.latest.release {
+            if metadata.id == self.latest.snapshot || metadata.id == self.latest.release {
                 continue
             }
             types.append(VersionTypeMetadataPair(version: .custom(metadata.id), metadata: metadata))
