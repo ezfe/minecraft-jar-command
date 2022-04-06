@@ -12,7 +12,7 @@ public struct VersionManifest: Codable {
     public let latest: Latest
     public var versions: [VersionMetadata]
     
-    public mutating func versionTypes() -> [VersionTypeMetadataPair] {
+    public var versionTypes: [VersionTypeMetadataPair] {
         var types = [VersionTypeMetadataPair]()
         
         if let releaseMetadata = try? self.metadata(for: .release) {
@@ -37,7 +37,8 @@ public struct VersionManifest: Codable {
         self.latest = latest
     }
     
-    public struct VersionTypeMetadataPair {
+    public struct VersionTypeMetadataPair: Identifiable {
+        public var id: String { self.metadata.id }
         public let version: VersionType
         public let metadata: VersionMetadata
     }
