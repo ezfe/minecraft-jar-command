@@ -12,9 +12,31 @@ public struct VersionManifest: Codable {
     public let latest: Latest
     public var versions: [VersionMetadata]
     
+    public mutating func versionTypes() -> [VersionTypeMetadataPair] {
+        var types = [VersionTypeMetadataPair]()
+        
+        if let releaseMetadata = try? self.metadata(for: .release) {
+            types.append(VersionTypeMetadataPair(version: .release, metadata: releaseMetadata))
+        }
+        if let snapshotMetadata = try? self.metadata(for: .snapshot) {
+            types.append(VersionTypeMetadataPair(version: .snapshot, metadata: snapshotMetadata))
+        }
+        
+        for metadata in self.versions {
+            types.append(VersionTypeMetadataPair(version: .custom(metadata.id), metadata: metadata))
+        }
+        
+        return types
+    }
+    
     public init(versions: [VersionMetadata], latest: Latest) {
         self.versions = versions
         self.latest = latest
+    }
+    
+    public struct VersionTypeMetadataPair {
+        public let version: VersionType
+        public let metadata: VersionMetadata
     }
     
     public struct VersionMetadata: Codable, Downloadable, Identifiable {
