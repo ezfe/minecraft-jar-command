@@ -88,7 +88,7 @@ public extension VersionManifest {
 // MARK: Get Version
 
 public extension VersionManifest {
-    enum VersionType: Hashable {
+    enum VersionType: Codable, Hashable {
         case release
         case snapshot
         case custom(String)
