@@ -71,10 +71,12 @@ public struct VersionPatch: Decodable {
 
                 writableLibrary.name = "\(libOrg):\(libName):\(libraryPatch.newLibraryVersion)"
                 
-                try await VersionPatch.editURL(resource: &writableLibrary.downloads.artifact,
-                                               newURL: libraryPatch.artifactURL)
-                writableLibrary.downloads.artifact.path = library.downloads.artifact.path
-                    .replacingOccurrences(of: libVersion, with: libraryPatch.newLibraryVersion)
+                if var artifact = writableLibrary.downloads.artifact {
+                    try await VersionPatch.editURL(resource: &artifact, newURL: libraryPatch.artifactURL)
+                    artifact.path = artifact.path.replacingOccurrences(of: libVersion,
+                                                                       with: libraryPatch.newLibraryVersion)
+                    writableLibrary.downloads.artifact = artifact
+                }
                 
                 if let nativePatchUrl = libraryPatch.macOSNativeURL,
                    let osxKey = library.natives?.osx,

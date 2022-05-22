@@ -129,7 +129,9 @@ extension InstallationManager {
 
 extension InstallationManager {
     func processArtifact(libraryInfo: VersionPackage.Library) throws -> LibraryMetadata? {
-        let artifact = libraryInfo.downloads.artifact
+        guard let artifact = libraryInfo.downloads.artifact else {
+            return nil
+        }
         
         let destinationURL = self.libraryDirectory.appendingPathComponent(artifact.path)
 

@@ -196,7 +196,7 @@ extension VersionPackage {
         public let rules: [Rule]?
         
         public struct Download: Codable {
-            public var artifact: Artifact
+            public var artifact: Artifact?
             public var classifiers: [String: Artifact]?
             
             public struct Artifact: Codable, DownloadableAllModifiable {
