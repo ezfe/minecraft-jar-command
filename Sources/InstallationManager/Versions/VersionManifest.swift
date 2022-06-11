@@ -38,7 +38,7 @@ public struct VersionManifest: Codable {
     }
     
     public struct VersionTypeMetadataPair: Identifiable {
-        public var id: String { self.metadata.id }
+        public var id: VersionType { version }
         public let version: VersionType
         public let metadata: VersionMetadata
     }
