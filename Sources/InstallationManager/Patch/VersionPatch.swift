@@ -9,12 +9,12 @@ import Foundation
 import Common
 import MojangRules
 
-public struct VersionPatch: Decodable {
+public struct VersionPatch: Codable {
     let id: String
     public let clientJarURL: String?
     public let libraries: [String: LibraryPatch]
     
-    public struct LibraryPatch: Decodable {
+    public struct LibraryPatch: Codable {
         public let newLibraryVersion: String
         public let artifactURL: String
         public let macOSNativeURL: String?
