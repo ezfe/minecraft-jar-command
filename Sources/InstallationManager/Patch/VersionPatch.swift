@@ -10,9 +10,15 @@ import Common
 import MojangRules
 
 public struct VersionPatch: Codable {
-    let id: String
+    public let id: String
     public let clientJarURL: String?
     public let libraries: [String: LibraryPatch]
+    
+    public init(id: String, clientJarURL: String?, libraries: [String : LibraryPatch]) {
+        self.id = id
+        self.clientJarURL = clientJarURL
+        self.libraries = libraries
+    }
     
     public struct LibraryPatch: Codable {
         public let newLibraryVersion: String
