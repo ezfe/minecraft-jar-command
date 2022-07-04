@@ -8,6 +8,10 @@
 import Foundation
 import Crypto
 
+#if canImport(FoundationNetworking)
+	 import FoundationNetworking
+#endif
+
 public protocol Downloadable {
     var url: String { get }
     var sha1: String { get }
