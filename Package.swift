@@ -1,4 +1,4 @@
-// swift-tools-version:5.5
+// swift-tools-version:5.6
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -9,7 +9,8 @@ let package = Package(
         .macOS("12")
     ],
     products: [
-        .library(name: "InstallationManager", targets: ["InstallationManager"])
+        .library(name: "InstallationManager", targets: ["InstallationManager"]),
+        .library(name: "Common", targets: ["Common"])
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
