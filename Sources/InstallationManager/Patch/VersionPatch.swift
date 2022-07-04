@@ -38,22 +38,19 @@ public struct VersionPatch: Codable {
         }
         
         let (data, response) = try await retrieveData(from: url)
-
-        if let httpResponse = response as? HTTPURLResponse {
-            if httpResponse.statusCode == 200 {
-                do {
-                    let decoder = JSONDecoder()
-                    return try decoder.decode(Self.self, from: data)
-                } catch let err {
-                    throw CError.decodingError(err.localizedDescription)
-                }
-            } else if httpResponse.statusCode == 404 {
-                return nil
-            } else {
-                throw CError.networkError("HTTP Status Code: \(httpResponse.statusCode)")
+        let httpResponse = response as! HTTPURLResponse
+        
+        if httpResponse.statusCode == 200 {
+            do {
+                let decoder = JSONDecoder()
+                return try decoder.decode(Self.self, from: data)
+            } catch let err {
+                throw CError.decodingError(err.localizedDescription)
             }
+        } else if httpResponse.statusCode == 404 {
+            return nil
         } else {
-            throw CError.networkError("Unable to convert URLResponse into HTTPURLResponse")
+            throw CError.networkError("HTTP Status Code: \(httpResponse.statusCode)")
         }
     }
     
