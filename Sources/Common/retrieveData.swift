@@ -7,6 +7,10 @@
 
 import Foundation
 
+#if canImport(FoundationNetworking)
+    import FoundationNetworking
+#endif
+
 public func retrieveData(url: URL) async throws -> Data {
     do {
         #if canImport(FoundationNetworking)
