@@ -9,6 +9,10 @@ import Foundation
 import Common
 import MojangRules
 
+#if canImport(FoundationNetworking)
+    import FoundationNetworking
+#endif
+
 public struct VersionPatch: Codable {
     public let id: String
     public let clientJarURL: String?
