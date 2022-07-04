@@ -9,7 +9,7 @@ import Foundation
 import Crypto
 
 #if canImport(FoundationNetworking)
-	 import FoundationNetworking
+import FoundationNetworking
 #endif
 
 public protocol Downloadable {
@@ -35,19 +35,30 @@ public extension Downloadable {
         
         let data: Data
         do {
-            data = try await URLSession.shared.data(from: url).0
+            #if canImport(FoundationNetworking)
+                data = await withCheckedContinuation { continuation in
+                    URLSession.shared.dataTask(with: url) { data, _, _ in
+                        guard let data = data else {
+                            fatalError()
+                        }
+                        continuation.resume(returning: data)
+                    }.resume()
+                }
+            #else
+                data = try await URLSession.shared.data(from: url).0
+            #endif
         } catch let err {
             throw CError.networkError(err.localizedDescription)
         }
         
         if checkSha1 {
             let foundSha1 = data.sha1()
-
+            
             if foundSha1 != sha1 {
                 throw CError.sha1Error(sha1, foundSha1)
             }
         }
-            
+        
         return data
     }
     
@@ -86,6 +97,6 @@ public extension Downloadable {
         } catch let err {
             throw CError.filesystemError(err.localizedDescription)
         }
-
+        
     }
 }

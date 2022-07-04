@@ -9,8 +9,18 @@ import Foundation
 
 public func retrieveData(url: URL) async throws -> Data {
     do {
-        let (data, _) = try await URLSession.shared.data(from: url)
-        return data
+        #if canImport(FoundationNetworking)
+            return await withCheckedContinuation { continuation in
+                URLSession.shared.dataTask(with: url) { data, _, _ in
+                    guard let data = data else {
+                        fatalError()
+                    }
+                    continuation.resume(returning: data)
+                }.resume()
+            }
+        #else
+            return try await URLSession.shared.data(from: url).0
+        #endif
     } catch let err {
         throw CError.networkError(err.localizedDescription)
     }
