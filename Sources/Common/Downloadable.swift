@@ -33,23 +33,7 @@ public extension Downloadable {
             throw CError.unknownError("Failed to create URL from \(self.url)")
         }
         
-        let data: Data
-        do {
-            #if canImport(FoundationNetworking)
-                data = await withCheckedContinuation { continuation in
-                    URLSession.shared.dataTask(with: url) { data, _, _ in
-                        guard let data = data else {
-                            fatalError()
-                        }
-                        continuation.resume(returning: data)
-                    }.resume()
-                }
-            #else
-                data = try await URLSession.shared.data(from: url).0
-            #endif
-        } catch let err {
-            throw CError.networkError(err.localizedDescription)
-        }
+        let data = try await retrieveData(from: url).0
         
         if checkSha1 {
             let foundSha1 = data.sha1()

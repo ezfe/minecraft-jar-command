@@ -278,7 +278,7 @@ extension InstallationManager {
         guard let javaInfoUrl = URL(string: "https://m1craft-server.ezekiel.workers.dev/java/\(javaVersion).json") else {
             throw CError.unknownError("Unable to find build URL for Java version \(javaVersion)")
         }
-        let javaInfoData = try await retrieveData(url: javaInfoUrl)
+        let javaInfoData = try await retrieveData(from: javaInfoUrl).0
         
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601

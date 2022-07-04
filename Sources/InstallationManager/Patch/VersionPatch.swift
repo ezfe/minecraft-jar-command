@@ -37,7 +37,7 @@ public struct VersionPatch: Codable {
             throw CError.encodingError("Failed to create patch URL for version \(version)")
         }
         
-        let (data, response) = try await URLSession.shared.data(from: url)
+        let (data, response) = try await retrieveData(from: url)
 
         if let httpResponse = response as? HTTPURLResponse {
             if httpResponse.statusCode == 200 {

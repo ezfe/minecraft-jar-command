@@ -11,19 +11,29 @@ import Foundation
     import FoundationNetworking
 #endif
 
-public func retrieveData(url: URL) async throws -> Data {
+public func retrieveData(from url: URL) async throws -> (Data, URLResponse) {
+    let request = URLRequest(url: url)
+    return try await retrieveData(for: request)
+}
+
+public func retrieveData(for request: URLRequest) async throws -> (Data, URLResponse) {
     do {
         #if canImport(FoundationNetworking)
-            return await withCheckedContinuation { continuation in
-                URLSession.shared.dataTask(with: url) { data, _, _ in
-                    guard let data = data else {
-                        fatalError()
+            return try await withCheckedThrowingContinuation { continuation in
+                URLSession.shared.dataTask(with: request) { data, response, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                        return
                     }
-                    continuation.resume(returning: data)
+                    guard let data = data,
+                          let response = response else {
+                        fatalError("Expected data/response when error is nil")
+                    }
+                    continuation.resume(returning: (data, response))
                 }.resume()
             }
         #else
-            return try await URLSession.shared.data(from: url).0
+            return try await URLSession.shared.data(for: request)
         #endif
     } catch let err {
         throw CError.networkError(err.localizedDescription)
