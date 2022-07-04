@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct SignInResult: Decodable {
+public struct SignInResult: Codable {
     public let id: String
     public let name: String
     public let token: String
