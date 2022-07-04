@@ -12,7 +12,7 @@ import MojangRules
 public struct VersionPatch: Codable {
     public let id: String
     public let clientJarURL: String?
-    public let libraries: [String: LibraryPatch]
+    public var libraries: [String: LibraryPatch]
     
     public init(id: String, clientJarURL: String?, libraries: [String : LibraryPatch]) {
         self.id = id
@@ -24,6 +24,12 @@ public struct VersionPatch: Codable {
         public let newLibraryVersion: String
         public let artifactURL: String
         public let macOSNativeURL: String?
+        
+        public init(newLibraryVersion: String, artifactURL: String, macOSNativeURL: String?) {
+            self.newLibraryVersion = newLibraryVersion
+            self.artifactURL = artifactURL
+            self.macOSNativeURL = macOSNativeURL
+        }
     }
     
     public static func download(for version: String) async throws -> Self? {
