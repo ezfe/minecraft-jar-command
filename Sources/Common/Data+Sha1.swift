@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import CryptoKit
+import Crypto
 
 public extension Data {
     func sha1() -> String {
