@@ -10,7 +10,7 @@ import Common
 import MojangRules
 import Zip
 
-public class InstallationManager: ObservableObject {
+public class InstallationManager {
     // MARK: Directories
     public let baseDirectory: URL
     public let gameDirectory: URL
