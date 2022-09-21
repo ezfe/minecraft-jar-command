@@ -275,7 +275,7 @@ extension InstallationManager {
     func javaVersionInfo(for version: VersionPackage) async throws -> JavaVersionInfo {
         let javaVersion = version.javaVersion?.majorVersion ?? 8
         
-        guard let javaInfoUrl = URL(string: "https://m1craft.ezekiel.dev/java/\(javaVersion).json") else {
+        guard let javaInfoUrl = URL(string: "https://m1craft.ezekiel.dev/api/java/\(javaVersion).json") else {
             throw CError.unknownError("Unable to find build URL for Java version \(javaVersion)")
         }
         let javaInfoData = try await retrieveData(from: javaInfoUrl).0
