@@ -37,7 +37,7 @@ public struct VersionPatch: Codable {
     }
     
     public static func download(for version: String) async throws -> Self? {
-        guard let url = URL(string: "https://m1craft-server.ezekiel.workers.dev/patch/\(version).json") else {
+        guard let url = URL(string: "https://m1craft.ezekiel.dev/api/patch/\(version).json") else {
             throw CError.encodingError("Failed to create patch URL for version \(version)")
         }
         
