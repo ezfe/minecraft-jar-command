@@ -225,7 +225,7 @@ extension InstallationManager {
 
 extension InstallationManager {
 	public func downloadAssets(for version: VersionPackage,
-										with patch: VersionPatch,
+										with patch: VersionPatch?,
 										progress: @escaping (Double) -> Void = { _ in }) async throws {
 		
 		let assetIndex = version.assetIndex
@@ -249,7 +249,11 @@ extension InstallationManager {
 		
 		let downloadRequests: [DownloadManager.DownloadRequest]
 		downloadRequests = index.objects.filter { (name, metadata) in
-			return !(patch.removeIcon && name.contains("icon"))
+			if let patch, patch.removeIcon {
+				return !name.contains("icon")
+			} else {
+				return true
+			}
 		}.map { (name, metadata) in
 			let destinationURL = self.assetsObjectsDirectory
 				.appendingPathComponent("\(metadata.sha1.prefix(2))/\(metadata.sha1)")
