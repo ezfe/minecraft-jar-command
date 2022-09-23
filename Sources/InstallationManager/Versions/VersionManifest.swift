@@ -62,7 +62,7 @@ public struct VersionManifest: Codable {
 		
 		public func package(with patchInfo: VersionPatch? = nil) async throws -> VersionPackage {
 			let packageData = try await self.download()
-			let package = try VersionPackage.decode(from: packageData)
+			let package = try VersionPackage21.decode(from: packageData)
 			if let patchInfo = patchInfo {
 				return try await patchInfo.patch(package: package)
 			} else {

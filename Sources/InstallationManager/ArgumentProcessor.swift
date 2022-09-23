@@ -31,15 +31,39 @@ struct ArgumentProcessor {
 		]
 	}
 	
-	func jvmArguments(versionInfo: VersionPackage) -> FlattenSequence<[[String]]> {
-		return self.process(arguments: versionInfo.arguments.jvm)
+	func jvmArguments(versionInfo: VersionPackage) -> any Sequence<String> {
+		if let versionInfo = versionInfo as? VersionPackage21 {
+			return self.process(arguments: versionInfo.arguments.jvm)
+		} else {
+			let arguments = [
+				"-XstartOnFirstThread",
+				"-Xss1M",
+				"-Djava.library.path=${natives_directory}",
+				"-Dminecraft.launcher.brand=${launcher_name}",
+				"-Dminecraft.launcher.version=${launcher_version}",
+				"-cp", "${classpath}",
+			]
+			return self.process(arguments: arguments)
+		}
 	}
 	
-	func gameArguments(versionInfo: VersionPackage) -> FlattenSequence<[[String]]> {
-		return self.process(arguments: versionInfo.arguments.game)
+	func gameArguments(versionInfo: VersionPackage) -> any Sequence<String> {
+		if let versionInfo = versionInfo as? VersionPackage21 {
+			return self.process(arguments: versionInfo.arguments.game)
+		} else if let versionInfo = versionInfo as? VersionPackage14 {
+			let arguments = versionInfo.gameArguments.split(separator: " ").map { String($0) }
+			return self.process(arguments: arguments)
+		} else {
+			print("Failed to process game arguments!", versionInfo)
+			return []
+		}
 	}
 	
-	private func process(arguments: [VersionPackage.Arguments.Argument]) -> FlattenSequence<[[String]]> {
+	private func process(arguments: [String]) -> [String] {
+		return arguments.map { applyVariableReplacement(source: $0, parameters: replacementParameters) }
+	}
+	
+	private func process(arguments: [VersionPackage21.Arguments.Argument]) -> FlattenSequence<[[String]]> {
 		let processedArguments = arguments
 			.compactMap { argument -> [String]? in
 				guard RuleProcessor.verifyRulesPass(argument.rules, with: .none) else {
@@ -47,7 +71,7 @@ struct ArgumentProcessor {
 				}
 				return argument.values.map { applyVariableReplacement(source: $0, parameters: replacementParameters) }
 			}
-		
+
 		return processedArguments.joined()
 	}
 }

@@ -128,7 +128,7 @@ extension InstallationManager {
 // MARK: - Library management
 
 extension InstallationManager {
-	func processArtifact(libraryInfo: VersionPackage.Library) throws -> LibraryMetadata? {
+	func processArtifact(libraryInfo: VersionPackageLibrary) throws -> LibraryMetadata? {
 		guard let artifact = libraryInfo.downloads.artifact else {
 			return nil
 		}
@@ -142,7 +142,7 @@ extension InstallationManager {
 		return LibraryMetadata(localURL: destinationURL, isNative: false, downloadRequest: request)
 	}
 	
-	func processClassifier(libraryInfo: VersionPackage.Library) throws -> LibraryMetadata? {
+	func processClassifier(libraryInfo: VersionPackageLibrary) throws -> LibraryMetadata? {
 		guard let nativesMappingDictionary = libraryInfo.natives,
 				let nativesMappingKey = nativesMappingDictionary.osx else {
 			// Failures here are acceptable and need not be logged
