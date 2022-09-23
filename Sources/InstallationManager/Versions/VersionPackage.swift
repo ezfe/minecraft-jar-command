@@ -29,14 +29,23 @@ extension VersionPackage {
 		jsonDecoder.keyDecodingStrategy = .convertFromSnakeCase
 		jsonDecoder.dateDecodingStrategy = .iso8601
 		
-		if let versionInfo = try? jsonDecoder.decode(VersionPackage21.self, from: data) {
+		var errors = [Error]()
+		do {
+			let versionInfo = try jsonDecoder.decode(VersionPackage21.self, from: data)
 			return versionInfo
-		} else if let versionInfo = try? jsonDecoder.decode(VersionPackage14.self, from: data) {
-			return versionInfo
-		} else {
-			print(String(data: data, encoding: .utf8) ?? "Failed to decode data to String")
-			throw CError.decodingError("Failed to decode as either VersionPackage21,14")
+		} catch let err {
+			errors.append(err)
 		}
+		
+		do {
+			let versionInfo = try jsonDecoder.decode(VersionPackage14.self, from: data)
+			return versionInfo
+		} catch let err {
+			errors.append(err)
+		}
+
+		print(errors)
+		throw CError.decodingError("Failed to decode as either VersionPackage21,14")
 	}
 	
 	public func encode() throws -> Data {
