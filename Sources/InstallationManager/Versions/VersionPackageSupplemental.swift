@@ -8,9 +8,9 @@
 import Foundation
 
 public struct VersionPackageSupplemental: Codable {
-    public let assetStoreBaseURL: String
-    
-    public init(assetStoreBaseURL: String) {
-        self.assetStoreBaseURL = assetStoreBaseURL
-    }
+	public let assetStoreBaseURL: String
+	
+	public init(assetStoreBaseURL: String) {
+		self.assetStoreBaseURL = assetStoreBaseURL
+	}
 }

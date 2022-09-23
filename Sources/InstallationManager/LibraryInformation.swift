@@ -8,8 +8,8 @@
 import Foundation
 
 public struct LibraryMetadata {
-    public let localURL: URL
-    public let isNative: Bool
-
-    let downloadRequest: DownloadManager.DownloadRequest
+	public let localURL: URL
+	public let isNative: Bool
+	
+	let downloadRequest: DownloadManager.DownloadRequest
 }

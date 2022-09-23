@@ -9,8 +9,8 @@ import Foundation
 import Common
 
 public struct JavaVersionInfo: Codable, DownloadableAllModifiable {
-    let version: Int
-    public var url: String
-    public var size: UInt
-    public var sha1: String
+	let version: Int
+	public var url: String
+	public var size: UInt
+	public var sha1: String
 }

@@ -9,7 +9,7 @@ import Foundation
 import Crypto
 
 public extension Data {
-    func sha1() -> String {
-        return Insecure.SHA1.hash(data: self).compactMap { String(format: "%02x", $0) }.joined()
-    }
+	func sha1() -> String {
+		return Insecure.SHA1.hash(data: self).compactMap { String(format: "%02x", $0) }.joined()
+	}
 }
