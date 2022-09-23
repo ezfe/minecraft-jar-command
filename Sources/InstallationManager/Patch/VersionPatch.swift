@@ -16,12 +16,13 @@ import FoundationNetworking
 public struct VersionPatch: Codable {
 	public let id: String
 	public let clientJarURL: String?
-	
+	public var removeIcon: Bool
 	public var libraries: [String: LibraryPatch]
 	
-	public init(id: String, clientJarURL: String?, libraries: [String : LibraryPatch]) {
+	public init(id: String, clientJarURL: String?, removeIcon: Bool, libraries: [String : LibraryPatch]) {
 		self.id = id
 		self.clientJarURL = clientJarURL
+		self.removeIcon = removeIcon
 		self.libraries = libraries
 	}
 	
