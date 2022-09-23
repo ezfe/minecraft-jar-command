@@ -51,7 +51,7 @@ struct ArgumentProcessor {
 		if let versionInfo = versionInfo as? VersionPackage21 {
 			return self.process(arguments: versionInfo.arguments.game)
 		} else if let versionInfo = versionInfo as? VersionPackage14 {
-			let arguments = versionInfo.gameArguments.split(separator: " ").map { String($0) }
+			let arguments = versionInfo.minecraftArguments.split(separator: " ").map { String($0) }
 			return self.process(arguments: arguments)
 		} else {
 			print("Failed to process game arguments!", versionInfo)

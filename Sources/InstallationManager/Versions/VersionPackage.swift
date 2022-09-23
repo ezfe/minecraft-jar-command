@@ -78,7 +78,7 @@ public struct VersionPackage14: VersionPackage {
 	
 	public let javaVersion: VersionPackageJavaVersion?
 
-	public let gameArguments: String
+	public let minecraftArguments: String
 }
 
 /**
