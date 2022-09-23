@@ -60,18 +60,9 @@ public struct VersionManifest: Codable {
 			self.sha1 = sha1
 		}
 		
-		public func package(patched: Bool) async throws -> VersionPackage {
+		public func package(with patchInfo: VersionPatch? = nil) async throws -> VersionPackage {
 			let packageData = try await self.download()
-			
 			let package = try VersionPackage.decode(from: packageData)
-			let patchInfo: VersionPatch?
-			
-			if patched {
-				patchInfo = try await VersionPatch.download(for: self.id)
-			} else {
-				patchInfo = nil
-			}
-			
 			if let patchInfo = patchInfo {
 				return try await patchInfo.patch(package: package)
 			} else {
